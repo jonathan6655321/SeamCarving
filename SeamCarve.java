@@ -26,6 +26,7 @@ import javax.imageio.ImageIO;
 
 public class SeamCarve {
 	private SeamImage originalImage;
+
 	public static void main(String[] args) {
 		SeamCarve SC = new SeamCarve();
 		SC.resizePicture("C:\\Users\\kessi\\Documents\\Tau\\Graphic\\SeamCurve\\bin\\reef-view-hotel-5.jpg", 0, 0,
@@ -35,25 +36,36 @@ public class SeamCarve {
 	private void resizePicture(String imageFilename, int numCol, int numRow, EnergyType eType,
 			String outputImageFilename) {
 		originalImage = new SeamImage(imageFilename);
-		displayImage(originalImage.getOriginalImage());		
-		
+		displayImage(originalImage);
+
 	}
 
-
-	public void displayImage(BufferedImage image) {
+	public void displayImage(SeamImage image) {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
-				ImageFrame frame = new ImageFrame(image);
+				ImageFrame frame = new ImageFrame(image.getOriginalImage());
 				frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 				frame.setVisible(true);
+				ImageComponent IC = frame.getImageComponent();
+
+				for (int i = 0; i <200; i++) {
+//					try {
+//						Thread.sleep(250);
+//					} catch (InterruptedException e) {
+//						// TODO Auto-generated catch block
+//						e.printStackTrace();
+//					}
+					int[] seam = getMinSeam(calculateMinSeamsMatrix(image.getEdgeMatrix(EnergyType.HoG)));
+					image.removeVerticalSeam(seam);
+				}
+				IC.setImage(image.getOriginalImage());
 
 			}
 		});
 	}
 
-	
-
 	class ImageFrame extends JFrame {
+		public ImageComponent IC;
 
 		public ImageFrame(BufferedImage image1) {
 			JFrame temp = new JFrame();
@@ -67,9 +79,13 @@ public class SeamCarve {
 
 			ImageComponent component = new ImageComponent(image1);
 			add(component);
+			IC = component;
 
 		}
 
+		public ImageComponent getImageComponent() {
+			return IC;
+		}
 	}
 
 	class ImageComponent extends JComponent {
@@ -80,6 +96,10 @@ public class SeamCarve {
 		private Image image;
 
 		public ImageComponent(Image image1) {
+			image = image1;
+		}
+
+		public void setImage(Image image1) {
 			image = image1;
 		}
 
@@ -99,84 +119,71 @@ public class SeamCarve {
 		}
 
 	}
-	
-	public int[][] calculateMinSeamsMatrix(int[][] edgeMatrix)
-	{
-		int[][] minSeamsMatrix = matrixCopy(edgeMatrix);
+
+	public double[][] calculateMinSeamsMatrix(double[][] edgeMatrix) {
+		double[][] minSeamsMatrix = matrixCopy(edgeMatrix);
 		int edgeMatrixWidth = edgeMatrix[0].length;
 		int edgeMatrixHeight = edgeMatrix.length;
-		
-		for (int i=1; i<edgeMatrixHeight; i++)
-		{
-			for (int j=0; j<edgeMatrixWidth; j++)
-			{
-				LinkedList<Integer> minPathBeforIJ = new LinkedList<>();
-				minPathBeforIJ.add(minSeamsMatrix[i-1][j]);
-				if(j!=0){
-					minPathBeforIJ.add(minSeamsMatrix[i-1][j-1]);
+
+		for (int i = 1; i < edgeMatrixHeight; i++) {
+			for (int j = 0; j < edgeMatrixWidth; j++) {
+				LinkedList<Double> minPathBeforIJ = new LinkedList<>();
+				minPathBeforIJ.add(minSeamsMatrix[i - 1][j]);
+				if (j != 0) {
+					minPathBeforIJ.add(minSeamsMatrix[i - 1][j - 1]);
 				}
-				if(j!=edgeMatrixWidth-1)
-				{
-					minPathBeforIJ.add(minSeamsMatrix[i-1][j+1]);
+				if (j != edgeMatrixWidth - 1) {
+					minPathBeforIJ.add(minSeamsMatrix[i - 1][j + 1]);
 				}
 				minSeamsMatrix[i][j] = Collections.min(minPathBeforIJ) + edgeMatrix[i][j];
 			}
 		}
 		return minSeamsMatrix;
 	}
-	
-	public int[] getMinSeam(int[][] minSeamsMatrix)
-	{
+
+	public int[] getMinSeam(double[][] minSeamsMatrix) {
 		int numCol = minSeamsMatrix[0].length;
 		int numRows = minSeamsMatrix.length;
-		int[] seam = new int[numRows]; 
-		seam[numRows-1] = minElementsIndex(minSeamsMatrix[numRows-1]);
-		
-		for(int i=numRows-2; i>=0; i--)
-		{
-			int prevIndex = seam[i+1];
-			
-			int minVal = minSeamsMatrix[i][prevIndex]; // directly above
+		int[] seam = new int[numRows];
+		seam[numRows - 1] = minElementsIndex(minSeamsMatrix[numRows - 1]);
+
+		for (int i = numRows - 2; i >= 0; i--) {
+			int prevIndex = seam[i + 1];
+
+			double minVal = minSeamsMatrix[i][prevIndex]; // directly above
 			int minIndex = prevIndex;
-			
-			if(prevIndex!=0 && minVal > minSeamsMatrix[i][prevIndex-1])
-			{
-				minVal = minSeamsMatrix[i][prevIndex-1];
+
+			if (prevIndex != 0 && minVal > minSeamsMatrix[i][prevIndex - 1]) {
+				minVal = minSeamsMatrix[i][prevIndex - 1];
 				minIndex--;
 			}
-			if(prevIndex!=numCol-1 && minVal > minSeamsMatrix[i][prevIndex+1])
-			{
-				minVal = minSeamsMatrix[i][prevIndex+1];
+			if (prevIndex != numCol - 1 && minVal > minSeamsMatrix[i][prevIndex + 1]) {
+				minVal = minSeamsMatrix[i][prevIndex + 1];
 				minIndex = prevIndex + 1;
 			}
-			
+
 			seam[i] = minIndex;
 		}
 		return seam;
 	}
-	
-	public int minElementsIndex(int[] arr)
-	{
-		int min = arr[0];
+
+	public int minElementsIndex(double[] arr) {
+		double min = arr[0];
 		int j = 0;
-		
-		for (int i=0; i<arr.length; i++)
-		{
-			if(arr[i] < min)
-			{
+
+		for (int i = 0; i < arr.length; i++) {
+			if (arr[i] < min) {
 				min = arr[i];
 				j = i;
-			}		
+			}
 		}
-		
+
 		return j;
 	}
-	
-	
-	public int[][] matrixCopy(int[][] original)
-	{
-		int [][] newMat = new int[original.length][];
-		for(int i = 0; i < original.length; i++)
+
+	public double[][] matrixCopy(double[][] original) {
+		double[][] newMat = new double[original.length][];
+		for (int i = 0; i < original.length; i++)
 			newMat[i] = original[i].clone();
 		return newMat;
 	}
