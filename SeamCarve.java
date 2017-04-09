@@ -167,6 +167,43 @@ public class SeamCarve {
 		return seam;
 	}
 
+	
+	public int[][] getKMinSeams(int k, double[][]minSeamsMatrix)
+	{
+		int numRows = minSeamsMatrix.length;
+		double[][] minSeamsMatrixCopy = matrixCopy(minSeamsMatrix);
+		int[][] kMinSeams = new int[k][numRows];
+		for(int i=0; i<k; i++)
+		{
+			kMinSeams[i] = getMinSeam(minSeamsMatrix);
+			for (int j=0; j<numRows; j++)
+			{
+				minSeamsMatrixCopy[j][kMinSeams[i][j]] = Double.MAX_VALUE;
+			}
+		}
+		
+		return calcTrueInsertedIndex(kMinSeams);
+	}
+	
+	public int[][] calcTrueInsertedIndex(int[][] kMinSeams)
+	{
+		int numRows = kMinSeams[0].length;
+		for(int i=0; i<numRows; i++) // iterate over rows
+		{
+			for (int j = 0; j < kMinSeams.length; j++) // iterate over seams
+			{
+				for (int k = j+1; k < kMinSeams.length; k++) // add 1 to index of seams whose index is larger than that of j seam
+				{
+					if(kMinSeams[k][i] > kMinSeams[j][i])
+					{
+						kMinSeams[k][i]++;
+					}
+				}
+			}
+		}
+		return kMinSeams;
+	}
+	
 	public int minElementsIndex(double[] arr) {
 		double min = arr[0];
 		int j = 0;
