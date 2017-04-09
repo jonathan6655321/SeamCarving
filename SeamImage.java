@@ -403,6 +403,7 @@ public class SeamImage {
 				}
 			}
 		}
+		RGBMatrix = resMatrix;
 		
 	}
 	
