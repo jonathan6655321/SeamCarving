@@ -141,7 +141,7 @@ public class SeamCarve {
 		return minSeamsMatrix;
 	}
 
-	public int[] getMinSeam(double[][] minSeamsMatrix) {
+	public static int[] getMinSeam(double[][] minSeamsMatrix) {
 		int numCol = minSeamsMatrix[0].length;
 		int numRows = minSeamsMatrix.length;
 		int[] seam = new int[numRows];
@@ -168,7 +168,7 @@ public class SeamCarve {
 	}
 
 	
-	public int[][] getKMinSeams(int k, double[][]minSeamsMatrix)
+	public static int[][] getKMinSeams(int k, double[][]minSeamsMatrix)
 	{
 		int numRows = minSeamsMatrix.length;
 		double[][] minSeamsMatrixCopy = matrixCopy(minSeamsMatrix);
@@ -185,7 +185,9 @@ public class SeamCarve {
 		return calcTrueInsertedIndex(kMinSeams);
 	}
 	
-	public int[][] calcTrueInsertedIndex(int[][] kMinSeams)
+	
+	
+	public static int[][] calcTrueInsertedIndex(int[][] kMinSeams)
 	{
 		int numRows = kMinSeams[0].length;
 		for(int i=0; i<numRows; i++) // iterate over rows
@@ -204,7 +206,7 @@ public class SeamCarve {
 		return kMinSeams;
 	}
 	
-	public int minElementsIndex(double[] arr) {
+	public static int minElementsIndex(double[] arr) {
 		double min = arr[0];
 		int j = 0;
 
@@ -218,7 +220,7 @@ public class SeamCarve {
 		return j;
 	}
 
-	public double[][] matrixCopy(double[][] original) {
+	public static double[][] matrixCopy(double[][] original) {
 		double[][] newMat = new double[original.length][];
 		for (int i = 0; i < original.length; i++)
 			newMat[i] = original[i].clone();

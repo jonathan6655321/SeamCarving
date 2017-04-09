@@ -236,4 +236,64 @@ public class SeamImage {
 		}
 		originalImage = image;
 	}
+	
+	
+	public void enlargeImageHorizontallyByK(int k)
+	{
+		int[][] kMinSeams = SeamCarve.getKMinSeams(k,getEdgeAndEntropyMatrix(EnergyType.HoG));
+		int[][][] resMatrix = new int[RGBMatrix.length][RGBMatrix[0].length+k][3];
+		
+		// insert new seams
+		for(int i = 0; i < k; i++)
+		{
+			for(int row = 0; row < resMatrix.length; row++)
+			{
+				resMatrix[row][kMinSeams[i][row]] = new int[] {-1,-1,-1};
+			}
+		}
+		
+		// insert old matrix
+		for(int row = 0; row < RGBMatrix.length; row++)
+		{
+			int offset = 0;
+			for (int col = 0; col < RGBMatrix[0].length; col++)
+			{
+				while(resMatrix[row][col + offset][0] == -1)
+				{
+					offset++;
+				} 
+				resMatrix[row][col+offset] = RGBMatrix[row][col];
+			}
+		}
+		
+		// calculate averages for new seams:
+		for(int row = 0; row < resMatrix.length; row++)
+		{
+			for (int col = 0; col<resMatrix[0].length; col++)
+			{
+				if(resMatrix[row][col][0]==-1)
+				{
+					if(col == 0)
+					{
+						resMatrix[row][col][0] = resMatrix[row][col+1][0]; 
+						resMatrix[row][col][1] =  resMatrix[row][col+1][1];
+						resMatrix[row][col][2] = resMatrix[row][col+1][2];
+					} else if(col == resMatrix[0].length)
+					{
+						resMatrix[row][col][0] = resMatrix[row][col-1][0] ; 
+						resMatrix[row][col][1] = resMatrix[row][col-1][1] ;
+						resMatrix[row][col][2] = resMatrix[row][col-1][2] ;
+					} else 
+					{
+						resMatrix[row][col][0] = (resMatrix[row][col-1][0] + resMatrix[row][col+1][0])/2; 
+						resMatrix[row][col][1] = (resMatrix[row][col-1][1] + resMatrix[row][col+1][1])/2;
+						resMatrix[row][col][2] = (resMatrix[row][col-1][2] + resMatrix[row][col+1][2])/2;
+					}
+				}
+			}
+		}
+		
+	}
+	
+
 }
