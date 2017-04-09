@@ -7,8 +7,8 @@ import java.util.Arrays;
 import javax.imageio.ImageIO;
 
 public class SeamImage {
-	private static final double ENTROPY_WEIGHT = 0.5;
-	private static final double EDGES_WEIGHT = 0.5;
+	private static final double ENTROPY_WEIGHT = 5;
+	private static final double EDGES_WEIGHT = 0.01;
 
 	private BufferedImage originalImage;
 	private double[][] edgeMatrix;
@@ -25,15 +25,63 @@ public class SeamImage {
 		RGBMatrix = convertImageToRGBMatrix(originalImage);
 		updateEverythingFromRGB();
 	}
-	
-	private void updateEverythingFromRGB(){
+
+	public SeamImage(BufferedImage image) {
+		originalImage = image;
+		RGBMatrix = convertImageToRGBMatrix(originalImage);
+		updateEverythingFromRGB();
+	}
+
+	public void rotate90right() {
+		changed = true;
+		edgeMatrix = rotateArray(edgeMatrix);
+		entropyMatrix = rotateArray(entropyMatrix);
+		grayscale9X9BlurMatrix = rotateArray(grayscale9X9BlurMatrix);
+		grayscaleMatrix = rotateArray(grayscaleMatrix);
+		edgeAndEntropyMatrix = rotateArray(edgeAndEntropyMatrix);
+		RGBMatrix = rotateArray(RGBMatrix);
+	}
+
+	public int getHeight() {
+		return RGBMatrix.length;
+	}
+
+	public int getWidth() {
+		return RGBMatrix[0].length;
+	}
+
+	private static double[][] rotateArray(double[][] array) {
+		int numberOfRows = array.length;
+		int numberOfColumns = array[0].length;
+		double[][] rotatedArray = new double[numberOfColumns][numberOfRows];
+		for (int row = 0; row < numberOfRows; row++) {
+			for (int col = 0; col < numberOfColumns; col++) {
+				rotatedArray[col][numberOfRows - row - 1] = array[row][col];
+			}
+		}
+		return rotatedArray;
+	}
+
+	private static int[][][] rotateArray(int[][][] array) {
+		int numberOfRows = array.length;
+		int numberOfColumns = array[0].length;
+		int[][][] rotatedArray = new int[numberOfColumns][numberOfRows][];
+		for (int row = 0; row < numberOfRows; row++) {
+			for (int col = 0; col < numberOfColumns; col++) {
+				rotatedArray[col][numberOfRows - row - 1] = array[row][col];
+			}
+		}
+		return rotatedArray;
+	}
+
+	private void updateEverythingFromRGB() {
 		edgeMatrix = calculateEdgeMatrix(RGBMatrix, eType);
 		grayscaleMatrix = convertRGBToGrayscaleMatrix(RGBMatrix);
 		grayscale9X9BlurMatrix = calculateGrayscale9x9BlockAvarageMatrix(grayscaleMatrix);
 		entropyMatrix = calculateEntropyMatrix(grayscaleMatrix, grayscale9X9BlurMatrix);
 		edgeAndEntropyMatrix = calculateEdgeAndEntropyMatrix(entropyMatrix, edgeMatrix);
 	}
-	
+
 	private BufferedImage loadImage(String fileName) {
 		try {
 			return ImageIO.read(new File(fileName));
@@ -49,6 +97,27 @@ public class SeamImage {
 			changed = false;
 			updateBufferImageFromRGB();
 		}
+		return originalImage;
+	}
+
+	public BufferedImage getOriginalImageEdges() {
+		int[][][] edgeRGB = new int[getHeight()][getWidth()][3];
+		double maxEdge = 0;
+		for (double[] dArr : edgeAndEntropyMatrix) {
+			for (double d : dArr) {
+				if (d < 100000) {
+					maxEdge = Math.max(maxEdge, d);
+				}
+			}
+		}
+		System.out.println(maxEdge);
+		for (int i = 0; i < getHeight(); i++) {
+			for (int j = 0; j < getWidth(); j++) {
+				edgeRGB[i][j][0] = (int) ((255 * edgeAndEntropyMatrix[i][j]) / maxEdge);
+			}
+		}
+		RGBMatrix = edgeRGB;
+		updateBufferImageFromRGB();
 		return originalImage;
 	}
 
@@ -165,7 +234,7 @@ public class SeamImage {
 							+ Math.abs(B - RGBMatrix[i][j][2]);
 				}
 			}
-			return diff / (3 * numberOfNeightbors);
+			return diff / (3 * (numberOfNeightbors - 1));
 		}
 		return -1;
 	}
@@ -351,65 +420,54 @@ public class SeamImage {
 		}
 		originalImage = image;
 	}
-	
-	
-	public void enlargeImageHorizontallyByK(int k)
-	{
-		int[][] kMinSeams = SeamCarve.getKMinSeams(k,getEdgeAndEntropyMatrix(EnergyType.HoG));
-		int[][][] resMatrix = new int[RGBMatrix.length][RGBMatrix[0].length+k][3];
-		
+
+	public void enlargeImageHorizontallyByK(int[][] kMinSeams) {
+		changed = true;
+		int k = kMinSeams.length;
+		// int[][] kMinSeams = SeamCarve.getKMinSeams(k,
+		// getEdgeAndEntropyMatrix(EnergyType.HoG));
+		int[][][] resMatrix = new int[RGBMatrix.length][RGBMatrix[0].length + k][3];
+
 		// insert new seams
-		for(int i = 0; i < k; i++)
-		{
-			for(int row = 0; row < resMatrix.length; row++)
-			{
-				resMatrix[row][kMinSeams[i][row]] = new int[] {-1,-1,-1};
+		for (int i = 0; i < k; i++) {
+			for (int row = 0; row < resMatrix.length; row++) {
+				resMatrix[row][kMinSeams[i][row]] = new int[] { -1, 100, 100 };
 			}
 		}
-		
+
 		// insert old matrix
-		for(int row = 0; row < RGBMatrix.length; row++)
-		{
+		for (int row = 0; row < RGBMatrix.length; row++) {
 			int offset = 0;
-			for (int col = 0; col < RGBMatrix[0].length; col++)
-			{
-				while(resMatrix[row][col + offset][0] == -1)
-				{
+			for (int col = 0; col < RGBMatrix[0].length; col++) {
+				while (resMatrix[row][col + offset][0] == -1) {
 					offset++;
-				} 
-				resMatrix[row][col+offset] = RGBMatrix[row][col];
+				}
+				resMatrix[row][col + offset] = RGBMatrix[row][col];
 			}
 		}
-		
+
 		// calculate averages for new seams:
-		for(int row = 0; row < resMatrix.length; row++)
-		{
-			for (int col = 0; col<resMatrix[0].length; col++)
-			{
-				if(resMatrix[row][col][0]==-1)
-				{
-					if(col == 0)
-					{
-						resMatrix[row][col][0] = resMatrix[row][col+1][0]; 
-						resMatrix[row][col][1] =  resMatrix[row][col+1][1];
-						resMatrix[row][col][2] = resMatrix[row][col+1][2];
-					} else if(col == resMatrix[0].length)
-					{
-						resMatrix[row][col][0] = resMatrix[row][col-1][0] ; 
-						resMatrix[row][col][1] = resMatrix[row][col-1][1] ;
-						resMatrix[row][col][2] = resMatrix[row][col-1][2] ;
-					} else 
-					{
-						resMatrix[row][col][0] = (resMatrix[row][col-1][0] + resMatrix[row][col+1][0])/2; 
-						resMatrix[row][col][1] = (resMatrix[row][col-1][1] + resMatrix[row][col+1][1])/2;
-						resMatrix[row][col][2] = (resMatrix[row][col-1][2] + resMatrix[row][col+1][2])/2;
+		/*for (int row = 0; row < resMatrix.length; row++) {
+			for (int col = 0; col < resMatrix[0].length; col++) {
+				if (resMatrix[row][col][0] == -1) {
+					if (col == 0) {
+						resMatrix[row][col][0] = resMatrix[row][col + 1][0];
+						resMatrix[row][col][1] = resMatrix[row][col + 1][1];
+						resMatrix[row][col][2] = resMatrix[row][col + 1][2];
+					} else if (col == resMatrix[0].length - 1) {
+						resMatrix[row][col][0] = resMatrix[row][col - 1][0];
+						resMatrix[row][col][1] = resMatrix[row][col - 1][1];
+						resMatrix[row][col][2] = resMatrix[row][col - 1][2];
+					} else {
+						resMatrix[row][col][0] = (resMatrix[row][col - 1][0] + resMatrix[row][col + 1][0]) / 2;
+						resMatrix[row][col][1] = (resMatrix[row][col - 1][1] + resMatrix[row][col + 1][1]) / 2;
+						resMatrix[row][col][2] = (resMatrix[row][col - 1][2] + resMatrix[row][col + 1][2]) / 2;
 					}
 				}
 			}
-		}
+		}*/
 		RGBMatrix = resMatrix;
-		
+		updateEverythingFromRGB();
 	}
-	
 
 }

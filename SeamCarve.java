@@ -25,19 +25,51 @@ import java.awt.Component;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import javax.imageio.ImageIO;
-
+/* TODO:
+ * enlarage bigger then original*2;
+ */
 public class SeamCarve {
 	private SeamImage originalImage;
 
 	public static void main(String[] args) {
 		SeamCarve SC = new SeamCarve();
-		SC.resizePicture("C:\\Users\\kessi\\Documents\\Tau\\Graphic\\SeamCurve\\bin\\reef-view-hotel-5.jpg", 0, 0,
-				EnergyType.HoG, "lol");
+		SC.resizePicture(args[0], Integer.parseInt(args[1]), Integer.parseInt(args[2]), EnergyType.HoG, args[4]);
 	}
 
 	private void resizePicture(String imageFilename, int numCol, int numRow, EnergyType eType,
 			String outputImageFilename) {
 		originalImage = new SeamImage(imageFilename);
+
+		if (numCol > originalImage.getWidth()) {
+			originalImage.enlargeImageHorizontallyByK(getKMinSeams(numCol - originalImage.getWidth(), originalImage));
+		}
+		if (numRow > originalImage.getHeight()) {
+			originalImage.rotate90right();
+			originalImage.enlargeImageHorizontallyByK(getKMinSeams(numRow - originalImage.getWidth(), originalImage));
+			originalImage.rotate90right();
+			originalImage.rotate90right();
+			originalImage.rotate90right();
+		}
+		if (numCol < originalImage.getWidth()) {
+			int numberOfSeamToRemove =originalImage.getWidth() - numCol;
+			for (int i = 0; i <numberOfSeamToRemove ; i++) {
+				originalImage.removeVerticalSeam(
+						getMinSeam(calculateMinSeamsMatrix(originalImage.getEdgeAndEntropyMatrix(EnergyType.HoG))));
+			}
+		}
+
+		if (numRow < originalImage.getHeight()) {
+			originalImage.rotate90right();
+			int numberOfSeamToRemove =originalImage.getWidth() - numRow;
+			for (int i = 0; i < numberOfSeamToRemove; i++) {
+				originalImage.removeVerticalSeam(
+						getMinSeam(calculateMinSeamsMatrix(originalImage.getEdgeAndEntropyMatrix(EnergyType.HoG))));
+			}
+			originalImage.rotate90right();
+			originalImage.rotate90right();
+			originalImage.rotate90right();
+		}
+
 		displayImage(originalImage);
 
 	}
@@ -48,26 +80,28 @@ public class SeamCarve {
 				ImageFrame frame = new ImageFrame(image.getOriginalImage());
 				frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 				frame.setVisible(true);
-				ImageComponent IC = frame.getImageComponent();
-
-				frame.addComponentListener(new ComponentAdapter() 
-				{  
-				        public void componentResized(ComponentEvent evt) {
-				            Component c = (Component)evt.getSource();
-				            //........
-				        }
-				});
-//				for (int i = 0; i <300; i++) {
-////					try {
-////						Thread.sleep(250);
-////					} catch (InterruptedException e) {
-////						// TODO Auto-generated catch block
-////						e.printStackTrace();
-////					}
-//					int[] seam = getMinSeam(calculateMinSeamsMatrix(image.getEdgeAndEntropyMatrix(EnergyType.HoG)));
-//					image.removeVerticalSeam(seam);
-//				}
-//				IC.setImage(image.getOriginalImage());
+				// ImageComponent IC = frame.getImageComponent();
+				//
+				// // frame.addComponentListener(new ComponentAdapter()
+				// // {
+				// // public void componentResized(ComponentEvent evt) {
+				// // Component c = (Component)evt.getSource();
+				// // //........
+				// // }
+				// // });
+				// // for (int i = 0; i <300; i++) {
+				// //// try {
+				// //// Thread.sleep(250);
+				// //// } catch (InterruptedException e) {
+				// //// // TODO Auto-generated catch block
+				// //// e.printStackTrace();
+				// //// }
+				// // int[] seam =
+				// //
+				// getMinSeam(calculateMinSeamsMatrix(image.getEdgeAndEntropyMatrix(EnergyType.HoG)));
+				// // image.removeVerticalSeam(seam);
+				// // }
+				// // IC.setImage(image.getOriginalImage());
 
 			}
 		});
@@ -86,15 +120,12 @@ public class SeamCarve {
 			this.setVisible(true);
 			this.setResizable(false);
 
-			
-
 			ImageComponent component = new ImageComponent(image1);
 			add(component);
 			IC = component;
 
 		}
 
-		
 		public ImageComponent getImageComponent() {
 			return IC;
 		}
@@ -132,22 +163,22 @@ public class SeamCarve {
 
 	}
 
-	public double[][] calculateMinSeamsMatrix(double[][] edgeMatrix) {
-		double[][] minSeamsMatrix = matrixCopy(edgeMatrix);
-		int edgeMatrixWidth = edgeMatrix[0].length;
-		int edgeMatrixHeight = edgeMatrix.length;
+	public static double[][] calculateMinSeamsMatrix(double[][] edgeAndEntropyMatrix) {
+		double[][] minSeamsMatrix = matrixCopy(edgeAndEntropyMatrix);
+		int edgeMatrixWidth = edgeAndEntropyMatrix[0].length;
+		int edgeMatrixHeight = edgeAndEntropyMatrix.length;
 
-		for (int i = 1; i < edgeMatrixHeight; i++) {
-			for (int j = 0; j < edgeMatrixWidth; j++) {
-				LinkedList<Double> minPathBeforIJ = new LinkedList<>();
-				minPathBeforIJ.add(minSeamsMatrix[i - 1][j]);
-				if (j != 0) {
-					minPathBeforIJ.add(minSeamsMatrix[i - 1][j - 1]);
+		for (int row = 1; row < edgeMatrixHeight; row++) {
+			for (int col = 0; col < edgeMatrixWidth; col++) {
+				double minPath = Double.MAX_VALUE;
+				minPath = Math.min(minPath, minSeamsMatrix[row - 1][col]);
+				if (col != 0) {
+					minPath = Math.min(minPath, minSeamsMatrix[row - 1][col - 1]);
 				}
-				if (j != edgeMatrixWidth - 1) {
-					minPathBeforIJ.add(minSeamsMatrix[i - 1][j + 1]);
+				if (col != edgeMatrixWidth - 1) {
+					minPath = Math.min(minPath, minSeamsMatrix[row - 1][col + 1]);
 				}
-				minSeamsMatrix[i][j] = Collections.min(minPathBeforIJ) + edgeMatrix[i][j];
+				minSeamsMatrix[row][col] = minPath + edgeAndEntropyMatrix[row][col];
 			}
 		}
 		return minSeamsMatrix;
@@ -179,45 +210,73 @@ public class SeamCarve {
 		return seam;
 	}
 
-	
-	public static int[][] getKMinSeams(int k, double[][]minSeamsMatrix)
-	{
-		int numRows = minSeamsMatrix.length;
-		double[][] minSeamsMatrixCopy = matrixCopy(minSeamsMatrix);
+	public static int[][] getKMinSeams(int k, SeamImage originalImage) {
+		int numRows = originalImage.getEdgeAndEntropyMatrix(EnergyType.HoG).length;
+		int numCols = originalImage.getEdgeAndEntropyMatrix(EnergyType.HoG)[0].length;
 		int[][] kMinSeams = new int[k][numRows];
-		for(int i=0; i<k; i++)
-		{
-			kMinSeams[i] = getMinSeam(minSeamsMatrix);
-			for (int j=0; j<numRows; j++)
-			{
-				minSeamsMatrixCopy[j][kMinSeams[i][j]] = Double.MAX_VALUE;
+		SeamImage image = new SeamImage(originalImage.getOriginalImage());
+
+		boolean[][] isInSeam = new boolean[numRows][numCols];
+
+		for (int i = 0; i < k; i++) {
+			kMinSeams[i] = getMinSeam(calculateMinSeamsMatrix(image.getEdgeAndEntropyMatrix(EnergyType.HoG)));
+			image.removeVerticalSeam(kMinSeams[i]);
+			for (int row = 0; row < numRows; row++) {
+				int offset = 0;
+				for (int col = 0; col <= kMinSeams[i][row]; col++) {
+					while (isInSeam[row][col + offset]) {
+						offset++;
+					}
+				}
+				kMinSeams[i][row] += offset;
+				isInSeam[row][kMinSeams[i][row]] = true;
 			}
 		}
-		
+
 		return calcTrueInsertedIndex(kMinSeams);
 	}
-	
-	
-	
-	public static int[][] calcTrueInsertedIndex(int[][] kMinSeams)
-	{
+
+	public static int[][] calcTrueInsertedIndex(int[][] kMinSeams) {
 		int numRows = kMinSeams[0].length;
-		for(int i=0; i<numRows; i++) // iterate over rows
+		for (int i = 0; i < numRows; i++) // iterate over rows
 		{
 			for (int j = 0; j < kMinSeams.length; j++) // iterate over seams
 			{
-				for (int k = j+1; k < kMinSeams.length; k++) // add 1 to index of seams whose index is larger than that of j seam
+				for (int k = 0; k < kMinSeams.length; k++) // add 1 to index
+															// of seams
+															// whose index
+															// is larger
+															// than that of
+															// j seam
 				{
-					if(kMinSeams[k][i] > kMinSeams[j][i])
-					{
+					if (k != j && kMinSeams[k][i] >= kMinSeams[j][i]) {
 						kMinSeams[k][i]++;
 					}
 				}
 			}
 		}
+
+		for (int i = 0; i < numRows; i++) // iterate over rows
+		{
+			for (int j = 0; j < kMinSeams.length; j++) // iterate over seams
+			{
+				for (int k = j + 1; k < kMinSeams.length; k++) // add 1 to index
+																// of seams
+																// whose index
+																// is larger
+																// than that of
+																// j seam
+				{
+					if (kMinSeams[k][i] == kMinSeams[j][i]) {
+						System.out.println("error");
+					}
+				}
+			}
+		}
+
 		return kMinSeams;
 	}
-	
+
 	public static int minElementsIndex(double[] arr) {
 		double min = arr[0];
 		int j = 0;
