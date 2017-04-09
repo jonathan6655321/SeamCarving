@@ -23,13 +23,17 @@ public class SeamImage {
 	public SeamImage(String imageFileName) {
 		originalImage = loadImage(imageFileName);
 		RGBMatrix = convertImageToRGBMatrix(originalImage);
+		updateEverythingFromRGB();
+	}
+	
+	private void updateEverythingFromRGB(){
 		edgeMatrix = calculateEdgeMatrix(RGBMatrix, eType);
 		grayscaleMatrix = convertRGBToGrayscaleMatrix(RGBMatrix);
 		grayscale9X9BlurMatrix = calculateGrayscale9x9BlockAvarageMatrix(grayscaleMatrix);
 		entropyMatrix = calculateEntropyMatrix(grayscaleMatrix, grayscale9X9BlurMatrix);
 		edgeAndEntropyMatrix = calculateEdgeAndEntropyMatrix(entropyMatrix, edgeMatrix);
 	}
-
+	
 	private BufferedImage loadImage(String fileName) {
 		try {
 			return ImageIO.read(new File(fileName));
