@@ -9,6 +9,7 @@ import javax.imageio.ImageIO;
 public class SeamImage {
 	private static final double ENTROPY_WEIGHT = 0.5;
 	private static final double EDGES_WEIGHT = 0.5;
+
 	private BufferedImage originalImage;
 	private double[][] edgeMatrix;
 	private double[][] entropyMatrix;
@@ -21,9 +22,9 @@ public class SeamImage {
 
 	public SeamImage(String imageFileName) {
 		originalImage = loadImage(imageFileName);
-		RGBMatrix = convertImageToRGB(originalImage);
+		RGBMatrix = convertImageToRGBMatrix(originalImage);
 		edgeMatrix = calculateEdgeMatrix(RGBMatrix, eType);
-		grayscaleMatrix = convertRGBToGrayscale(RGBMatrix);
+		grayscaleMatrix = convertRGBToGrayscaleMatrix(RGBMatrix);
 		grayscale9X9BlurMatrix = calculateGrayscale9x9BlockAvarageMatrix(grayscaleMatrix);
 		entropyMatrix = calculateEntropyMatrix(grayscaleMatrix, grayscale9X9BlurMatrix);
 		edgeAndEntropyMatrix = calculateEdgeAndEntropyMatrix(entropyMatrix, edgeMatrix);
@@ -47,7 +48,7 @@ public class SeamImage {
 		return originalImage;
 	}
 
-	private double[][] getEdgeAndEntropyMatrix(EnergyType eType) {
+	public double[][] getEdgeAndEntropyMatrix(EnergyType eType) {
 		if (this.eType != eType) {
 			edgeMatrix = calculateEdgeMatrix(RGBMatrix, eType);
 			this.eType = eType;
@@ -127,7 +128,7 @@ public class SeamImage {
 				sum += pValue * Math.log(pValue);
 			}
 		}
-		return sum / numberOfNeightbors;
+		return (-sum) / numberOfNeightbors;
 	}
 
 	private static double[][] calculateEdgeMatrix(int[][][] RGBMatrix, EnergyType eType) {
@@ -165,7 +166,7 @@ public class SeamImage {
 		return -1;
 	}
 
-	private static int[][][] convertImageToRGB(BufferedImage image) {
+	private static int[][][] convertImageToRGBMatrix(BufferedImage image) {
 		int numberOfRows = image.getHeight();
 		int numberOfColumns = image.getWidth();
 		int[][][] RGBMatrix = new int[numberOfRows][numberOfColumns][];
@@ -182,21 +183,34 @@ public class SeamImage {
 		return RGBMatrix;
 	}
 
-	private static double[][] convertRGBToGrayscale(int[][][] RGBMatrix) {
+	private static double[][] convertRGBToGrayscaleMatrix(int[][][] RGBMatrix) {
 		int numberOfRows = RGBMatrix.length;
 		int numberOfColumns = RGBMatrix[0].length;
 		double[][] GrayscaleMatrix = new double[numberOfRows][numberOfColumns];
 
 		for (int i = 0; i < numberOfRows; i++) {
 			for (int j = 0; j < numberOfColumns; j++) {
-				GrayscaleMatrix[i][j] = (double) ((RGBMatrix[i][j][0] + RGBMatrix[i][j][1] + RGBMatrix[i][j][2])) / 3;
+				GrayscaleMatrix[i][j] = convertRGBToGrayscaleValue(i, j, RGBMatrix);
 			}
 		}
 		return GrayscaleMatrix;
 	}
 
+	private static double convertRGBToGrayscaleValue(int row, int col, int[][][] RGBMatrix) {
+		return (double) ((RGBMatrix[row][col][0] + RGBMatrix[row][col][1] + RGBMatrix[row][col][2])) / 3;
+	}
+
 	public void removeVerticalSeam(int[] seamXValues) {
 		changed = true;
+		updateRGBMatrix(seamXValues);
+		updateEdgeMatrix(seamXValues);
+		updateGrayscaleMatrix(seamXValues);
+		updateGrayscale9x9BlockAvarageMatrix(seamXValues);
+		updateEntropyMatrix(seamXValues);
+		updateEdgeAndEntropyMatrix(seamXValues);
+	}
+
+	private void updateRGBMatrix(int[] seamXValues) {
 		int numberOfRows = RGBMatrix.length;
 		int numberOfColumns = RGBMatrix[0].length;
 
@@ -204,10 +218,107 @@ public class SeamImage {
 			for (int col = seamXValues[row]; col < numberOfColumns - 1; col++) {
 				RGBMatrix[row][col] = RGBMatrix[row][col + 1];
 			}
-			RGBMatrix[row] = Arrays.copyOfRange(RGBMatrix[row], 0, numberOfColumns - 1);
+		}
+		removeLastColomn(RGBMatrix);
+	}
+
+	private void updateEdgeMatrix(int[] seamXValues) {
+		int numberOfRows = edgeMatrix.length;// calculateEdgeValue
+		int numberOfColumns = edgeMatrix[0].length;
+
+		for (int row = 0; row < numberOfRows; row++) {
+			for (int col = Math.max(seamXValues[row] - 1, 0); col < Math.min(seamXValues[row] + 1,
+					numberOfColumns - 1); col++) {
+				edgeMatrix[row][col] = calculateEdgeValue(row, col, RGBMatrix, eType);
+			}
+			for (int col = seamXValues[row] + 2; col < numberOfColumns - 1; col++) {
+				edgeMatrix[row][col] = edgeMatrix[row][col + 1];
+			}
+		}
+		removeLastColomn(edgeMatrix);
+	}
+
+	private void updateGrayscaleMatrix(int[] seamXValues) {
+		int numberOfRows = grayscaleMatrix.length;// calculateEdgeValue
+		int numberOfColumns = grayscaleMatrix[0].length;
+
+		for (int row = 0; row < numberOfRows; row++) {
+			for (int col = Math.max(seamXValues[row] - 1, 0); col < Math.min(seamXValues[row] + 1,
+					numberOfColumns - 1); col++) {
+				grayscaleMatrix[row][col] = convertRGBToGrayscaleValue(row, col, RGBMatrix);
+			}
+			for (int col = seamXValues[row] + 2; col < numberOfColumns - 1; col++) {
+				grayscaleMatrix[row][col] = grayscaleMatrix[row][col + 1];
+			}
+		}
+		removeLastColomn(grayscaleMatrix);
+	}
+
+	private void updateGrayscale9x9BlockAvarageMatrix(int[] seamXValues) {
+		int numberOfRows = grayscale9X9BlurMatrix.length;
+		int numberOfColumns = grayscale9X9BlurMatrix[0].length;
+
+		for (int row = 0; row < numberOfRows; row++) {
+			for (int col = Math.max(seamXValues[row] - 4, 0); col < Math.min(seamXValues[row] + 5,
+					numberOfColumns - 1); col++) {
+				grayscale9X9BlurMatrix[row][col] = calculateGrayscale9x9BlockAvarageValue(row, col, grayscaleMatrix);
+			}
+			for (int col = seamXValues[row] + 6; col < numberOfColumns - 1; col++) {
+				grayscale9X9BlurMatrix[row][col] = grayscale9X9BlurMatrix[row][col + 1];
+			}
+		}
+		removeLastColomn(grayscale9X9BlurMatrix);
+	}
+
+	private void updateEntropyMatrix(int[] seamXValues) {
+		int numberOfRows = entropyMatrix.length;
+		int numberOfColumns = entropyMatrix[0].length;
+
+		for (int row = 0; row < numberOfRows; row++) {
+			for (int col = Math.max(seamXValues[row] - 4, 0); col < Math.min(seamXValues[row] + 5,
+					numberOfColumns - 1); col++) {
+				entropyMatrix[row][col] = calculateEntropyValue(row, col, grayscaleMatrix, grayscale9X9BlurMatrix);
+			}
+			for (int col = seamXValues[row] + 6; col < numberOfColumns - 1; col++) {
+				entropyMatrix[row][col] = entropyMatrix[row][col + 1];
+			}
+		}
+		removeLastColomn(entropyMatrix);
+	}
+
+	private void updateEdgeAndEntropyMatrix(int[] seamXValues) {
+		int numberOfRows = edgeAndEntropyMatrix.length;
+		int numberOfColumns = edgeAndEntropyMatrix[0].length;
+
+		for (int row = 0; row < numberOfRows; row++) {
+			for (int col = Math.max(seamXValues[row] - 4, 0); col < Math.min(seamXValues[row] + 5,
+					numberOfColumns - 1); col++) {
+				edgeAndEntropyMatrix[row][col] = EDGES_WEIGHT * edgeMatrix[row][col]
+						+ ENTROPY_WEIGHT * entropyMatrix[row][col];
+			}
+			for (int col = seamXValues[row] + 6; col < numberOfColumns - 1; col++) {
+				edgeAndEntropyMatrix[row][col] = edgeAndEntropyMatrix[row][col + 1];
+			}
+		}
+		removeLastColomn(edgeAndEntropyMatrix);
+	}
+
+	private static void removeLastColomn(double[][] array) {
+		int numberOfRows = array.length;
+		int numberOfColumns = array[0].length;
+		for (int row = 0; row < numberOfRows; row++) {
+			array[row] = Arrays.copyOfRange(array[row], 0, numberOfColumns - 1);
 		}
 	}
-	
+
+	private static void removeLastColomn(int[][][] array) {
+		int numberOfRows = array.length;
+		int numberOfColumns = array[0].length;
+		for (int row = 0; row < numberOfRows; row++) {
+			array[row] = Arrays.copyOfRange(array[row], 0, numberOfColumns - 1);
+		}
+	}
+
 	// public void removeHorizontalSeam(int[] seamYValues) {
 	// int numberOfRows = RGBMatrix.length;
 	// int numberOfColumns = RGBMatrix[0].length;

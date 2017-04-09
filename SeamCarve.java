@@ -14,6 +14,8 @@ import java.awt.Graphics;
 import java.awt.Image;
 import java.awt.Insets;
 import java.awt.List;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 
 import javax.imageio.ImageIO;
 import javax.swing.JComponent;
@@ -48,17 +50,24 @@ public class SeamCarve {
 				frame.setVisible(true);
 				ImageComponent IC = frame.getImageComponent();
 
-				for (int i = 0; i <200; i++) {
-//					try {
-//						Thread.sleep(250);
-//					} catch (InterruptedException e) {
-//						// TODO Auto-generated catch block
-//						e.printStackTrace();
-//					}
-					int[] seam = getMinSeam(calculateMinSeamsMatrix(image.getEdgeMatrix(EnergyType.HoG)));
-					image.removeVerticalSeam(seam);
-				}
-				IC.setImage(image.getOriginalImage());
+				frame.addComponentListener(new ComponentAdapter() 
+				{  
+				        public void componentResized(ComponentEvent evt) {
+				            Component c = (Component)evt.getSource();
+				            //........
+				        }
+				});
+//				for (int i = 0; i <300; i++) {
+////					try {
+////						Thread.sleep(250);
+////					} catch (InterruptedException e) {
+////						// TODO Auto-generated catch block
+////						e.printStackTrace();
+////					}
+//					int[] seam = getMinSeam(calculateMinSeamsMatrix(image.getEdgeAndEntropyMatrix(EnergyType.HoG)));
+//					image.removeVerticalSeam(seam);
+//				}
+//				IC.setImage(image.getOriginalImage());
 
 			}
 		});
@@ -77,12 +86,15 @@ public class SeamCarve {
 			this.setVisible(true);
 			this.setResizable(false);
 
+			
+
 			ImageComponent component = new ImageComponent(image1);
 			add(component);
 			IC = component;
 
 		}
 
+		
 		public ImageComponent getImageComponent() {
 			return IC;
 		}
