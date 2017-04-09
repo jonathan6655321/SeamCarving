@@ -1,20 +1,22 @@
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Array;
+import java.util.Arrays;
 
 import javax.imageio.ImageIO;
 
 public class SeamImage {
+	private static final double ENTROPY_WEIGHT = 0.5;
+	private static final double EDGES_WEIGHT = 0.5;
 	private BufferedImage originalImage;
 	private double[][] edgeMatrix;
 	private EnergyType eType;
 	private int[][][] RGBMatrix;
-	private double[][] GrayscaleMatrix;
 
 	public SeamImage(String imageFileName) {
 		originalImage = loadImage(imageFileName);
 		RGBMatrix = convertImageToRGB(originalImage);
-		GrayscaleMatrix = convertRGBToGrayscale(RGBMatrix);
 	}
 
 	private BufferedImage loadImage(String fileName) {
@@ -30,49 +32,74 @@ public class SeamImage {
 	public BufferedImage getOriginalImage() {
 		return originalImage;
 	}
+
 	public double[][] getEdgeMatrix(EnergyType eType) {
 		edgeMatrix = calculateEdgeMatrix(RGBMatrix, eType);
 		this.eType = eType;
 		return edgeMatrix;
 	}
 
-	private static double[][] addEntropy(double[][] GrayscaleMatrix, double[][] edgeMatrix) {
-		int numberOfRows = edgeMatrix.length;
-		int numberOfColumns = edgeMatrix[0].length;
+	private static double[][] calculateEntropyMatrix(double[][] grayscaleMatrix) {
+		int numberOfRows = grayscaleMatrix.length;
+		int numberOfColumns = grayscaleMatrix[0].length;
+		double[][] grayscale9X9BlurMatrix = calculateGrayscale9x9BlockAvarageMatrix(grayscaleMatrix);
 
 		double[][] entropyMatrix = new double[numberOfRows][numberOfColumns];
 
-		for (int i = 3; i < numberOfRows - 4; i++) {
-			for (int j = 3; j < numberOfColumns - 4; j++) {
-				//entropyMatrix[i][j] = calculateEdgeValue(i, j, RGBMatrix, eType);// TODO
-																					// calc
+		for (int i = 0; i < numberOfRows; i++) {
+			for (int j = 0; j < numberOfColumns; j++) {
+				entropyMatrix[i][j] = calculateEntropyValue(i, j, grayscaleMatrix, grayscale9X9BlurMatrix);
 			}
 		}
-		addEdgesToMatrix(entropyMatrix, 4);
 		return entropyMatrix;
 	}
 
-	private static void applyEntropyToEdges(double[][] entropyMatrix, double[][] edgeMatrix) {
+	private static double[][] calculateGrayscale9x9BlockAvarageMatrix(double[][] grayscaleMatrix) {
+		int numberOfRows = grayscaleMatrix.length;
+		int numberOfColumns = grayscaleMatrix[0].length;
+
+		double[][] grayscale9X9BlurMatrix = new double[numberOfRows][numberOfColumns];
+		for (int row = 0; row < numberOfRows; row++) {
+			for (int col = 0; col < numberOfColumns; col++) {
+				int numberOfNeightbors = 0;
+				double sum = 0;
+				for (int i = Math.max(row - 4, 0); i < Math.min(row + 5, numberOfRows); i++) {
+					for (int j = Math.max(col - 4, 0); j < Math.min(col + 5, numberOfColumns); j++) {
+						numberOfNeightbors++;
+						sum += grayscaleMatrix[i][j];
+					}
+				}
+				grayscale9X9BlurMatrix[row][col] = sum / numberOfNeightbors;
+			}
+		}
+		return grayscale9X9BlurMatrix;
+	}
+
+	private static void applyEntropyToEdge(double[][] entropyMatrix, double[][] edgeMatrix) {
 		int numberOfRows = edgeMatrix.length;
 		int numberOfColumns = edgeMatrix[0].length;
 
 		for (int i = 0; i < numberOfRows; i++) {
 			for (int j = 0; j < numberOfColumns; j++) {
-				edgeMatrix[i][j] -= entropyMatrix[i][j];
+				edgeMatrix[i][j] = EDGES_WEIGHT * edgeMatrix[i][j] + ENTROPY_WEIGHT * entropyMatrix[i][j];
 			}
 		}
 	}
 
-
-	private static double calculateEntropyValue(int row, int col, double[][] GrayscaleMatrix) {
-		double diff = 0;
-		for (int i = -1; i < 2; i++) {
-			for (int j = -1; j < 2; j++) {
-				//diff += Math.abs(R - RGBMatrix[row + i][col + j][0]) + Math.abs(G - RGBMatrix[row + i][col + j][1])
-					//	+ Math.abs(B - RGBMatrix[row + i][col + j][2]);
+	private static double calculateEntropyValue(int row, int col, double[][] grayscaleMatrix,
+			double[][] grayscale9X9BlurMatrix) {
+		int numberOfRows = grayscaleMatrix.length;
+		int numberOfColumns = grayscaleMatrix[0].length;
+		double sum = 0;
+		int numberOfNeightbors = 0;
+		for (int i = Math.max(row - 4, 0); i < Math.min(row + 5, numberOfRows); i++) {
+			for (int j = Math.max(col - 4, 0); j < Math.min(col + 5, numberOfColumns); j++) {
+				numberOfNeightbors++;
+				double pValue = grayscaleMatrix[i][j] / (9 * grayscale9X9BlurMatrix[i][j]);
+				sum += pValue * Math.log(pValue);
 			}
 		}
-		return diff / 8;
+		return sum / numberOfNeightbors;
 	}
 
 	private static double[][] calculateEdgeMatrix(int[][][] RGBMatrix, EnergyType eType) {
@@ -80,38 +107,21 @@ public class SeamImage {
 		int numberOfColumns = RGBMatrix[0].length;
 		double[][] edgeMatrix = new double[numberOfRows][numberOfColumns];
 
-		for (int i = 1; i < numberOfRows - 1; i++) {
-			for (int j = 1; j < numberOfColumns - 1; j++) {
+		for (int i = 0; i < numberOfRows; i++) {
+			for (int j = 0; j < numberOfColumns; j++) {
 				edgeMatrix[i][j] = calculateEdgeValue(i, j, RGBMatrix, eType);
 			}
 		}
-		addEdgesToMatrix(edgeMatrix, 1);
+
+		double[][] entropyMatrix = calculateEntropyMatrix(convertRGBToGrayscale(RGBMatrix));
+		applyEntropyToEdge(entropyMatrix, edgeMatrix);
+
 		return edgeMatrix;
 	}
 
-	private static void addEdgesToMatrix(double[][] edgeMatrix, int numberOfPixelToAdd) {
-		int numberOfRows = edgeMatrix.length;
-		int numberOfColumns = edgeMatrix[0].length;
-		if (numberOfColumns > numberOfPixelToAdd) {
-			for (int k = 0; k < numberOfPixelToAdd; k++) {
-				for (int i = k; i < numberOfRows - k; i++) {
-					edgeMatrix[i][k] = edgeMatrix[i][k + 1];
-					edgeMatrix[i][numberOfColumns - 1 - k] = edgeMatrix[i][numberOfColumns - 2 - k];
-				}
-			}
-		}
-
-		if (numberOfRows > numberOfPixelToAdd) {
-			for (int k = 0; k < numberOfPixelToAdd; k++) {
-				for (int j = k; j < numberOfColumns - k; j++) {
-					edgeMatrix[k][j] = edgeMatrix[k + 1][j];
-					edgeMatrix[numberOfRows - 1 - k][j] = edgeMatrix[numberOfRows - 2 - k][j];
-				}
-			}
-		}
-	}
-
 	private static double calculateEdgeValue(int row, int col, int[][][] RGBMatrix, EnergyType eType) {
+		int numberOfRows = RGBMatrix.length;
+		int numberOfColumns = RGBMatrix[0].length;
 		if (eType == EnergyType.HoG) {
 			int R = RGBMatrix[row][col][0];
 			int G = RGBMatrix[row][col][1];
@@ -119,14 +129,14 @@ public class SeamImage {
 
 			double diff = 0;
 			int numberOfNeightbors = 0;
-			for (int i = -1; i < 2; i++) {
-				for (int j = -1; j < 2; j++) {
+			for (int i = Math.max(row - 1, 0); i < Math.min(row + 2, numberOfRows); i++) {
+				for (int j = Math.max(col - 1, 0); j < Math.min(col + 2, numberOfColumns); j++) {
 					numberOfNeightbors++;
-					diff += Math.abs(R - RGBMatrix[row + i][col + j][0]) + Math.abs(G - RGBMatrix[row + i][col + j][1])
-							+ Math.abs(B - RGBMatrix[row + i][col + j][2]);
+					diff += Math.abs(R - RGBMatrix[i][j][0]) + Math.abs(G - RGBMatrix[i][j][1])
+							+ Math.abs(B - RGBMatrix[i][j][2]);
 				}
 			}
-			return diff / 24;
+			return diff / (3 * numberOfNeightbors);
 		}
 		return -1;
 	}
@@ -161,4 +171,46 @@ public class SeamImage {
 		return GrayscaleMatrix;
 	}
 
+	public void removeHorizontalSaem(int[] seamXValues) {
+		int numberOfRows = RGBMatrix.length;
+		int numberOfColumns = RGBMatrix[0].length;
+
+		for (int row = 0; row < numberOfRows; row++) {
+			for (int col = seamXValues[row]; col < numberOfColumns - 1; col++) {
+				RGBMatrix[row][col] = RGBMatrix[row][col + 1];
+			}
+			RGBMatrix[row] = Arrays.copyOfRange(RGBMatrix[row], 0, numberOfColumns - 1);
+		}
+		updateBufferImageFromRGB();
+	}
+
+	public void removeVerticalSaem(int[] seamYValues) {
+		int numberOfRows = RGBMatrix.length;
+		int numberOfColumns = RGBMatrix[0].length;
+
+		for (int col = 0; col < numberOfColumns; col++) {
+			for (int row = seamYValues[col]; row < numberOfRows - 1; row++) {
+				RGBMatrix[row][col] = RGBMatrix[row + 1][col];
+			}
+			RGBMatrix = Arrays.copyOfRange(RGBMatrix, 0, numberOfRows - 1);
+		}
+		updateBufferImageFromRGB();
+	}
+
+	private void updateBufferImageFromRGB() {
+		int numberOfRows = RGBMatrix.length;
+		int numberOfColumns = RGBMatrix[0].length;
+
+		BufferedImage image = new BufferedImage(numberOfColumns, numberOfRows, BufferedImage.TYPE_INT_RGB);
+
+		for (int row = 0; row < numberOfRows; row++) {
+			for (int col = 0; col < numberOfColumns; col++) {
+				int rgb = RGBMatrix[row][col][0];
+				rgb = (rgb << 8) + RGBMatrix[row][col][1];
+				rgb = (rgb << 8) + RGBMatrix[row][col][2];
+				image.setRGB(col, row, rgb);
+			}
+		}
+		originalImage = image;
+	}
 }
