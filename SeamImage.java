@@ -222,22 +222,30 @@ public class SeamImage {
 		int numberOfRows = RGBMatrix.length;
 		int numberOfColumns = RGBMatrix[0].length;
 		if (eType == EnergyType.HoG) {
-			int R = RGBMatrix[row][col][0];
-			int G = RGBMatrix[row][col][1];
-			int B = RGBMatrix[row][col][2];
-
 			double diff = 0;
 			int numberOfNeightbors = 0;
 			for (int i = Math.max(row - 1, 0); i < Math.min(row + 2, numberOfRows); i++) {
 				for (int j = Math.max(col - 1, 0); j < Math.min(col + 2, numberOfColumns); j++) {
 					numberOfNeightbors++;
-					diff += Math.abs(R - RGBMatrix[i][j][0]) + Math.abs(G - RGBMatrix[i][j][1])
-							+ Math.abs(B - RGBMatrix[i][j][2]);
+					diff+= calculateEnergyDiffBetweenTwoPixels(RGBMatrix, row, col, i, j);
 				}
 			}
 			return diff / (numberOfNeightbors - 1);
 		}
 		return -1;
+	}
+	
+	private static double calculateEnergyDiffBetweenTwoPixels(int [][][] RGBMatrix,int i1, int j1, int i2, int j2)
+	{
+		int R1 = RGBMatrix[i1][j1][0];
+		int G1 = RGBMatrix[i1][j1][1];
+		int B1 = RGBMatrix[i1][j1][2];
+	
+		int R2 = RGBMatrix[i2][j2][0];
+		int G2 = RGBMatrix[i2][j2][1]; 
+		int B2 = RGBMatrix[i2][j2][2];
+		
+		return Math.abs(R1 - R2) + Math.abs(B1 - B2) + Math.abs(G1 - G2);
 	}
 
 	private static int[][][] convertImageToRGBMatrix(BufferedImage image) {
@@ -447,26 +455,26 @@ public class SeamImage {
 			}
 		}
 
-		// calculate averages for new seams:
-		for (int row = 0; row < resMatrix.length; row++) {
-			for (int col = 0; col < resMatrix[0].length; col++) {
-				if (resMatrix[row][col][0] == -1) {
-					if (col == 0) {
-						resMatrix[row][col][0] = resMatrix[row][col + 1][0];
-						resMatrix[row][col][1] = resMatrix[row][col + 1][1];
-						resMatrix[row][col][2] = resMatrix[row][col + 1][2];
-					} else if (col == resMatrix[0].length - 1) {
-						resMatrix[row][col][0] = resMatrix[row][col - 1][0];
-						resMatrix[row][col][1] = resMatrix[row][col - 1][1];
-						resMatrix[row][col][2] = resMatrix[row][col - 1][2];
-					} else {
-						resMatrix[row][col][0] = (resMatrix[row][col - 1][0] + resMatrix[row][col + 1][0]) / 2;
-						resMatrix[row][col][1] = (resMatrix[row][col - 1][1] + resMatrix[row][col + 1][1]) / 2;
-						resMatrix[row][col][2] = (resMatrix[row][col - 1][2] + resMatrix[row][col + 1][2]) / 2;
-					}
-				}
-			}
-		}
+//		// calculate averages for new seams:
+//		for (int row = 0; row < resMatrix.length; row++) {
+//			for (int col = 0; col < resMatrix[0].length; col++) {
+//				if (resMatrix[row][col][0] == -1) {
+//					if (col == 0) {
+//						resMatrix[row][col][0] = resMatrix[row][col + 1][0];
+//						resMatrix[row][col][1] = resMatrix[row][col + 1][1];
+//						resMatrix[row][col][2] = resMatrix[row][col + 1][2];
+//					} else if (col == resMatrix[0].length - 1) {
+//						resMatrix[row][col][0] = resMatrix[row][col - 1][0];
+//						resMatrix[row][col][1] = resMatrix[row][col - 1][1];
+//						resMatrix[row][col][2] = resMatrix[row][col - 1][2];
+//					} else {
+//						resMatrix[row][col][0] = (resMatrix[row][col - 1][0] + resMatrix[row][col + 1][0]) / 2;
+//						resMatrix[row][col][1] = (resMatrix[row][col - 1][1] + resMatrix[row][col + 1][1]) / 2;
+//						resMatrix[row][col][2] = (resMatrix[row][col - 1][2] + resMatrix[row][col + 1][2]) / 2;
+//					}
+//				}
+//			}
+//		}
 		RGBMatrix = resMatrix;
 		updateEverythingFromRGB();
 	}

@@ -183,6 +183,42 @@ public class SeamCarve {
 		}
 		return minSeamsMatrix;
 	}
+	
+	public static double[][] calculateMinSeamsMatrixForwarding(double[][] edgeAndEntropyMatrix)
+	{
+		double[][] minSeamsMatrix = matrixCopy(edgeAndEntropyMatrix);
+		int edgeMatrixWidth = edgeAndEntropyMatrix[0].length;
+		int edgeMatrixHeight = edgeAndEntropyMatrix.length;
+		
+		
+		for (int row = 1; row < edgeMatrixHeight; row++) {
+			for (int col = 0; col < edgeMatrixWidth; col++) {
+				double minPath = Double.MAX_VALUE;
+				minPath = Math.min(minPath, minSeamsMatrix[row - 1][col]);
+				if (col != 0) {
+					minPath = Math.min(minPath, minSeamsMatrix[row - 1][col - 1]);
+				}
+				if (col != edgeMatrixWidth - 1) {
+					minPath = Math.min(minPath, minSeamsMatrix[row - 1][col + 1]);
+				}
+				minSeamsMatrix[row][col] = minPath + edgeAndEntropyMatrix[row][col];
+			}
+		}
+		return minSeamsMatrix;
+		
+	}
+	
+	private static double costLeft(int row, int col){
+		
+	}
+	
+	private static double costRight(int row, int col){
+		
+	}
+	
+	private static double costUp(int row, int col){
+		
+	}
 
 	public static int[] getMinSeam(double[][] minSeamsMatrix) {
 		int numCol = minSeamsMatrix[0].length;
