@@ -235,7 +235,8 @@ public class SeamImage {
 		return -1;
 	}
 	
-	private static double calculateEnergyDiffBetweenTwoPixels(int [][][] RGBMatrix,int i1, int j1, int i2, int j2)
+	// public for use in function in seam carve
+	public static double calculateEnergyDiffBetweenTwoPixels(int [][][] RGBMatrix,int i1, int j1, int i2, int j2)
 	{
 		int R1 = RGBMatrix[i1][j1][0];
 		int G1 = RGBMatrix[i1][j1][1];
@@ -479,4 +480,7 @@ public class SeamImage {
 		updateEverythingFromRGB();
 	}
 
+	public int[][][] getRGBMatrix(){
+		return this.RGBMatrix;
+	}
 }

@@ -1,4 +1,4 @@
 
 public enum EnergyType {
-	HoG
+	HoG,Forwarding
 }
