@@ -197,7 +197,7 @@ public class SeamImage {
 		for (int i = Math.max(row - 4, 0); i < Math.min(row + 5, numberOfRows); i++) {
 			for (int j = Math.max(col - 4, 0); j < Math.min(col + 5, numberOfColumns); j++) {
 				numberOfNeightbors++;
-				double pValue = grayscaleMatrix[i][j] / (9 * grayscale9X9BlurMatrix[i][j]);
+				double pValue = grayscaleMatrix[i][j] / (81 * grayscale9X9BlurMatrix[i][j]);
 				sum += pValue * Math.log(pValue);
 			}
 		}
@@ -234,7 +234,7 @@ public class SeamImage {
 							+ Math.abs(B - RGBMatrix[i][j][2]);
 				}
 			}
-			return diff / (3 * (numberOfNeightbors - 1));
+			return diff / (numberOfNeightbors - 1);
 		}
 		return -1;
 	}
