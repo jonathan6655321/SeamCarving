@@ -7,8 +7,8 @@ import java.util.Arrays;
 import javax.imageio.ImageIO;
 
 public class SeamImage {
-	private static final double ENTROPY_WEIGHT = 5;
-	private static final double EDGES_WEIGHT = 0.01;
+	private static final double ENTROPY_WEIGHT = -200;
+	private static final double EDGES_WEIGHT = 1;
 
 	private BufferedImage originalImage;
 	private double[][] edgeMatrix;
@@ -16,7 +16,7 @@ public class SeamImage {
 	private double[][] grayscale9X9BlurMatrix;
 	private double[][] grayscaleMatrix;
 	private double[][] edgeAndEntropyMatrix;
-	private EnergyType eType = null;
+	private EnergyType eType = EnergyType.HoG;
 	private int[][][] RGBMatrix;
 	boolean changed = false;
 
@@ -193,11 +193,12 @@ public class SeamImage {
 		int numberOfRows = grayscaleMatrix.length;
 		int numberOfColumns = grayscaleMatrix[0].length;
 		double sum = 0;
-		int numberOfNeightbors = 0;
+		double numberOfNeightbors = 0;
 		for (int i = Math.max(row - 4, 0); i < Math.min(row + 5, numberOfRows); i++) {
 			for (int j = Math.max(col - 4, 0); j < Math.min(col + 5, numberOfColumns); j++) {
 				numberOfNeightbors++;
-				double pValue = grayscaleMatrix[i][j] / (81 * grayscale9X9BlurMatrix[i][j]);
+				// need to add 1 so there wont be any zeros.
+				double pValue = (grayscaleMatrix[i][j]+1) / (81 * grayscale9X9BlurMatrix[i][j]); 
 				sum += pValue * Math.log(pValue);
 			}
 		}
@@ -447,7 +448,7 @@ public class SeamImage {
 		}
 
 		// calculate averages for new seams:
-		/*for (int row = 0; row < resMatrix.length; row++) {
+		for (int row = 0; row < resMatrix.length; row++) {
 			for (int col = 0; col < resMatrix[0].length; col++) {
 				if (resMatrix[row][col][0] == -1) {
 					if (col == 0) {
@@ -465,7 +466,7 @@ public class SeamImage {
 					}
 				}
 			}
-		}*/
+		}
 		RGBMatrix = resMatrix;
 		updateEverythingFromRGB();
 	}
