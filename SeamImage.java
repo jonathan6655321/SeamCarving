@@ -1,10 +1,9 @@
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Array;
 import java.util.Arrays;
-import java.util.Currency;
-import java.util.function.BinaryOperator;
+import java.util.concurrent.ForkJoinPool;
+import java.util.stream.IntStream;
 
 import javax.imageio.ImageIO;
 
@@ -51,11 +50,19 @@ public class SeamImage {
 	}
 
 	private void updateEverythingFromRGB() {
-		edgeMatrix = calculateEdgeMatrix(RGBMatrix);
-		grayscaleMatrix = calculateGrayscaleMatrix(RGBMatrix);
-		grayscale9X9BlurMatrix = calculateGrayscale9x9BlockAvarageMatrix(grayscaleMatrix);
-		entropyMatrix = calculateEntropyMatrix(grayscaleMatrix, grayscale9X9BlurMatrix);
-		edgeAndEntropyMatrix = calculateEdgeAndEntropyMatrix(entropyMatrix, edgeMatrix);
+		ForkJoinPool forkJoinPool = new ForkJoinPool();
+		forkJoinPool.submit(() -> edgeMatrix = calculateEdgeMatrix(RGBMatrix)).join();
+		forkJoinPool = new ForkJoinPool();
+		forkJoinPool.submit(() -> grayscaleMatrix = calculateGrayscaleMatrix(RGBMatrix)).join();
+		forkJoinPool = new ForkJoinPool();
+		forkJoinPool.submit(() -> grayscale9X9BlurMatrix = calculateGrayscale9x9BlockAvarageMatrix(grayscaleMatrix))
+				.join();
+		forkJoinPool = new ForkJoinPool();
+		forkJoinPool.submit(() -> entropyMatrix = calculateEntropyMatrix(grayscaleMatrix, grayscale9X9BlurMatrix))
+				.join();
+		forkJoinPool = new ForkJoinPool();
+		forkJoinPool.submit(() -> edgeAndEntropyMatrix = calculateEdgeAndEntropyMatrix(entropyMatrix, edgeMatrix))
+				.join();
 	}
 
 	private BufferedImage loadImage(String fileName) {
@@ -222,11 +229,12 @@ public class SeamImage {
 		int numberOfColumns = RGBMatrix[0].length;
 		double[][] edgeMatrix = new double[numberOfRows][numberOfColumns];
 
-		for (int i = 0; i < numberOfRows; i++) {
-			for (int j = 0; j < numberOfColumns; j++) {
-				edgeMatrix[i][j] = calculateEdgeValue(i, j, RGBMatrix);
-			}
-		}
+		IntStream.rangeClosed(0, numberOfRows - 1).parallel().forEach(row1 -> {
+			final int row = row1;
+			IntStream.rangeClosed(0, numberOfColumns - 1).parallel().forEach(col -> {
+				edgeMatrix[row][col] = calculateEdgeValue(row, col, RGBMatrix);
+			});
+		});
 		return edgeMatrix;
 	}
 
@@ -236,11 +244,23 @@ public class SeamImage {
 
 		double[][] entropyMatrix = new double[numberOfRows][numberOfColumns];
 
-		for (int i = 0; i < numberOfRows; i++) {
-			for (int j = 0; j < numberOfColumns; j++) {
-				entropyMatrix[i][j] = calculateEntropyValue(i, j, grayscaleMatrix, grayscale9X9BlurMatrix);
-			}
-		}
+		IntStream.rangeClosed(0, numberOfRows - 1).parallel().forEach(row1 -> {
+			final int row = row1;
+			IntStream.rangeClosed(0, numberOfColumns - 1).parallel().forEach(col -> {
+				int numberOfNeightbors = 0;
+				double sum = 0;
+				double pValue;
+				for (int i = Math.max(row - 4, 0); i < Math.min(row + 5, numberOfRows); i++) {
+					for (int j = Math.max(col - 4, 0); j < Math.min(col + 5, numberOfColumns); j++) {
+						numberOfNeightbors++;
+						// need to add 1 so there wont be any zeros.
+						pValue = (grayscaleMatrix[i][j] + 1) * grayscale9X9BlurMatrix[i][j] / 81;
+						sum += pValue * Math.log10(pValue);
+					}
+				}
+				entropyMatrix[row][col] = (-sum) / numberOfNeightbors;
+			});
+		});
 		return entropyMatrix;
 	}
 
@@ -249,12 +269,13 @@ public class SeamImage {
 		int numberOfColumns = grayscaleMatrix[0].length;
 
 		double[][] grayscale9X9BlurMatrix = new double[numberOfRows][numberOfColumns];
-		for (int row = 0; row < numberOfRows; row++) {
-			for (int col = 0; col < numberOfColumns; col++) {
+		IntStream.rangeClosed(0, numberOfRows - 1).parallel().forEach(row1 -> {
+			final int row = row1;
+			IntStream.rangeClosed(0, numberOfColumns - 1).parallel().forEach(col -> {
 				grayscale9X9BlurMatrix[row][col] = calculateGrayscale9x9BlockAvarageValuePowerMinusOne(row, col,
 						grayscaleMatrix);
-			}
-		}
+			});
+		});
 		return grayscale9X9BlurMatrix;
 	}
 
@@ -264,11 +285,13 @@ public class SeamImage {
 
 		double[][] edgeAndEntropyMatrix = new double[numberOfRows][numberOfColumns];
 
-		for (int i = 0; i < numberOfRows; i++) {
-			for (int j = 0; j < numberOfColumns; j++) {
-				edgeAndEntropyMatrix[i][j] = EDGES_WEIGHT * edgeMatrix[i][j] + ENTROPY_WEIGHT * entropyMatrix[i][j];
-			}
-		}
+		IntStream.rangeClosed(0, numberOfRows - 1).parallel().forEach(row1 -> {
+			final int row = row1;
+			IntStream.rangeClosed(0, numberOfColumns - 1).parallel().forEach(col -> {
+				edgeAndEntropyMatrix[row][col] = EDGES_WEIGHT * edgeMatrix[row][col]
+						+ ENTROPY_WEIGHT * entropyMatrix[row][col];
+			});
+		});
 		return edgeAndEntropyMatrix;
 	}
 
@@ -277,11 +300,12 @@ public class SeamImage {
 		int numberOfColumns = RGBMatrix[0].length;
 		double[][] GrayscaleMatrix = new double[numberOfRows][numberOfColumns];
 
-		for (int i = 0; i < numberOfRows; i++) {
-			for (int j = 0; j < numberOfColumns; j++) {
-				GrayscaleMatrix[i][j] = convertRGBToGrayscaleValue(RGBMatrix[i][j]);
-			}
-		}
+		IntStream.rangeClosed(0, numberOfRows - 1).parallel().forEach(row1 -> {
+			final int row = row1;
+			IntStream.rangeClosed(0, numberOfColumns - 1).parallel().forEach(col -> {
+				GrayscaleMatrix[row][col] = convertRGBToGrayscaleValue(RGBMatrix[row][col]);
+			});
+		});
 		return GrayscaleMatrix;
 	}
 
@@ -345,7 +369,7 @@ public class SeamImage {
 		return (-sum) / numberOfNeightbors;
 	}
 
-	private static int calculateAcarageColorBasedOnNeightbors(int leftPixel, int currentPixel, int rightPixel) {
+	private static int calculateAvarageColorBasedOnNeightbors(int leftPixel, int currentPixel, int rightPixel) {
 		if (FILL_ENLARGE) {
 			currentPixel = ((((leftPixel >> 16) & 0xff) + ((rightPixel >> 16) & 0xff)) / 2) << 16;
 			currentPixel += ((((leftPixel >> 8) & 0xff) + ((rightPixel >> 8) & 0xff)) / 2) << 8;
@@ -394,11 +418,12 @@ public class SeamImage {
 
 		// calculate averages for new seams:
 		int leftPixel, currentPixel, rightPixel;
-		for (int[] currentRow : resMatrix) {
+
+		for (int[] currentRow : resMatrix) {// TODO:Parralel
 			leftPixel = rightPixel = currentRow[1];
 			currentPixel = currentRow[0];
 			if (currentPixel == -1) {
-				currentRow[0] = currentPixel = calculateAcarageColorBasedOnNeightbors(leftPixel, currentPixel,
+				currentRow[0] = currentPixel = calculateAvarageColorBasedOnNeightbors(leftPixel, currentPixel,
 						rightPixel);
 			}
 			for (int col = 2; col < currentRow.length; col++) {
@@ -406,7 +431,7 @@ public class SeamImage {
 				currentPixel = rightPixel;
 				rightPixel = currentRow[col];
 				if (currentPixel == -1) {
-					currentRow[col - 1] = currentPixel = calculateAcarageColorBasedOnNeightbors(leftPixel, currentPixel,
+					currentRow[col - 1] = currentPixel = calculateAvarageColorBasedOnNeightbors(leftPixel, currentPixel,
 							rightPixel);
 				}
 			}
@@ -414,7 +439,7 @@ public class SeamImage {
 			currentPixel = rightPixel;
 			rightPixel = leftPixel;
 			if (currentPixel == -1) {
-				currentRow[currentRow.length - 1] = currentPixel = calculateAcarageColorBasedOnNeightbors(leftPixel,
+				currentRow[currentRow.length - 1] = currentPixel = calculateAvarageColorBasedOnNeightbors(leftPixel,
 						currentPixel, rightPixel);
 			}
 		}
@@ -428,7 +453,6 @@ public class SeamImage {
 	private void updateRGBMatrix(int[] seamXValues) {
 		int numberOfRows = RGBMatrix.length;
 		int numberOfColumns = RGBMatrix[0].length;
-
 		for (int row = 0; row < numberOfRows; row++) {
 			for (int col = seamXValues[row]; col < numberOfColumns - 1; col++) {
 				RGBMatrix[row][col] = RGBMatrix[row][col + 1];
@@ -495,7 +519,7 @@ public class SeamImage {
 					numberOfColumns - 1); col++) {
 				entropyMatrix[row][col] = calculateEntropyValue(row, col, grayscaleMatrix, grayscale9X9BlurMatrix);
 			}
-			for (int col = seamXValues[row] + 6; col < numberOfColumns - 1; col++) {
+			for (int col = seamXValues[row] + 5; col < numberOfColumns - 1; col++) {
 				entropyMatrix[row][col] = entropyMatrix[row][col + 1];
 			}
 		}
@@ -523,24 +547,16 @@ public class SeamImage {
 	private static void removeLastColomn(double[][] array) {
 		int numberOfRows = array.length;
 		int numberOfColumns = array[0].length;
-		double[][] newArray = new double[numberOfRows][numberOfColumns-1];
 		for (int row = 0; row < numberOfRows; row++) {
-			for (int col = 0; col < numberOfColumns-1; col++) {
-				newArray[row][col] = array[row][col];
-			}
-			array[row] = newArray[row];
+			array[row] = Arrays.copyOfRange(array[row], 0, numberOfColumns - 1);
 		}
 	}
 
 	private static void removeLastColomn(int[][] array) {
 		int numberOfRows = array.length;
 		int numberOfColumns = array[0].length;
-		int[][] newArray = new int[numberOfRows][numberOfColumns-1];
 		for (int row = 0; row < numberOfRows; row++) {
-			for (int col = 0; col < numberOfColumns-1; col++) {
-				newArray[row][col] = array[row][col];
-			}
-			array[row] = newArray[row];
+			array[row] = Arrays.copyOfRange(array[row], 0, numberOfColumns - 1);
 		}
 	}
 
