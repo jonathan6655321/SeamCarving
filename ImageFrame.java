@@ -15,7 +15,7 @@ class ImageFrame extends JFrame {
 	public static void displayImage(SeamImage image) {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
-				ImageFrame frame = new ImageFrame(image.getImage());
+				ImageFrame frame = new ImageFrame(image.getImageEdgeAndEntropy());
 				frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 				frame.setVisible(true);
 

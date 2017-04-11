@@ -46,14 +46,14 @@ public class SeamCarve {
 				seamImage.rotate90right();
 			}
 			if (width < seamImage.getWidth()) {
-				int numberOfSeamToRemove = seamImage.getWidth() - width;
-				for (int i = 0; i < numberOfSeamToRemove; i++) {
+				for (int i = 0; i < originalWidth - width; i++) {
 					seamImage.removeVerticalSeam(getMinSeam(calculateMinSeamsMatrixByEnergyType(seamImage, eType)));
 				}
 			}
 
 			if (height < originalHeight) {
 				seamImage.rotate90right();
+				ImageFrame.displayImage(seamImage);
 				for (int i = 0; i < originalHeight - height; i++) {
 					seamImage.removeVerticalSeam(getMinSeam(calculateMinSeamsMatrixByEnergyType(seamImage, eType)));
 				}
