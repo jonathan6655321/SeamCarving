@@ -53,7 +53,6 @@ public class SeamCarve {
 
 			if (height < originalHeight) {
 				seamImage.rotate90right();
-				ImageFrame.displayImage(seamImage);
 				for (int i = 0; i < originalHeight - height; i++) {
 					seamImage.removeVerticalSeam(getMinSeam(calculateMinSeamsMatrixByEnergyType(seamImage, eType)));
 				}
