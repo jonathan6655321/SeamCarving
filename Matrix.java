@@ -24,7 +24,7 @@ public class Matrix {
 			matrix[row] = newMatrix[row];
 		}
 	}
-	
+
 	public static double[][] rotateArray(double[][] array) {
 		int numberOfRows = array.length;
 		int numberOfColumns = array[0].length;
@@ -62,6 +62,26 @@ public class Matrix {
 		return image;
 	}
 
+	public static BufferedImage createBufferImageFromIntMatrix(int[][] matrix) {
+		int height = matrix.length;
+		int width = matrix[0].length;
+		int[][] newRGBMatrix = new int[height][width];
+		double maxValue = 0;
+		for (int[] dArr : matrix) {
+			for (int d : dArr) {
+				maxValue = Math.max(maxValue, d);
+			}
+		}
+		System.out.println(maxValue);
+		maxValue = 255 / maxValue;
+		for (int i = 0; i < height; i++) {
+			for (int j = 0; j < width; j++) {
+				newRGBMatrix[i][j] = (int) (maxValue * matrix[i][j]);
+			}
+		}
+		return Matrix.createBufferImageFromRGBMatrix(newRGBMatrix);
+	}
+
 	public static BufferedImage createBufferImageFromDoubleMatrix(double[][] matrix) {
 		int height = matrix.length;
 		int width = matrix[0].length;
@@ -73,9 +93,10 @@ public class Matrix {
 			}
 		}
 		System.out.println(maxValue);
+		maxValue = 255 / maxValue;
 		for (int i = 0; i < height; i++) {
 			for (int j = 0; j < width; j++) {
-				newRGBMatrix[i][j] = (int) ((255 * matrix[i][j]) / maxValue);
+				newRGBMatrix[i][j] = (int) (maxValue * matrix[i][j]);
 			}
 		}
 		return Matrix.createBufferImageFromRGBMatrix(newRGBMatrix);

@@ -42,7 +42,6 @@ public class SeamCarve {
 		int[] seamXValues;
 
 		if (isLegitInput(originalWidth, originalHeight, width, height, eType)) {
-
 			if (width > originalWidth) {
 				seamImage.enlargeImageHorizontallyByK(getKMinSeams(width - originalWidth, seamImage, eType));
 			}
@@ -61,7 +60,6 @@ public class SeamCarve {
 					updateMinSeamsMatrixByEnergyType(seamImage, seamXValues, minSeamsMatrix, eType);
 				}
 			}
-
 			if (height < originalHeight) {
 				seamImage.rotate90right();
 
@@ -73,7 +71,6 @@ public class SeamCarve {
 					updateMinSeamsMatrixByEnergyType(seamImage, seamXValues, minSeamsMatrix, eType);
 
 				}
-
 				seamImage.rotate90right();
 				seamImage.rotate90right();
 				seamImage.rotate90right();
@@ -127,7 +124,13 @@ public class SeamCarve {
 	public static double[][] calculateMinSeamsMatrixByEnergyType(SeamImage image, EnergyType eType) {
 		switch (eType) {
 		case EnergyWithoutEntropy:
-			return calculateMinSeamsMatrix(image.getEdgeMatrix());
+			int[][] matrix = image.getEdgeMatrix();
+			int height = matrix.length, width = matrix[0].length;
+			double[][] newMatrix = new double[height][width];
+			for (int i = 0; i < height; i++)
+				for (int j = 0; j < width; j++)
+					newMatrix[i][j] = matrix[i][j];
+			return calculateMinSeamsMatrix(newMatrix);
 		case EnergyWithEntropy:
 			return calculateMinSeamsMatrix(image.getEdgeAndEntropyMatrix());
 		case EnergyForwarding:
@@ -212,7 +215,13 @@ public class SeamCarve {
 			EnergyType eType) {
 		switch (eType) {
 		case EnergyWithoutEntropy:
-			updateMinSeamsMatrix(minSeamsMatrix, seamXValues, image.getEdgeMatrix());
+			int[][] matrix = image.getEdgeMatrix();
+			int height = matrix.length, width = matrix[0].length;
+			double[][] newMatrix = new double[height][width];
+			for (int i = 0; i < height; i++)
+				for (int j = 0; j < width; j++)
+					newMatrix[i][j] = matrix[i][j];
+			updateMinSeamsMatrix(minSeamsMatrix, seamXValues, newMatrix);
 			break;
 		case EnergyWithEntropy:
 			updateMinSeamsMatrix(minSeamsMatrix, seamXValues, image.getEdgeAndEntropyMatrix());
@@ -230,50 +239,50 @@ public class SeamCarve {
 
 		int edgeMatrixWidth = edgeAndEntropyMatrix[0].length;
 		int edgeMatrixHeight = edgeAndEntropyMatrix.length;
-		Queue<Integer> qCurrent = new PriorityQueue<>(), qNext = new PriorityQueue<>(), qSwap;
+
+		boolean[] currentRow = new boolean[edgeMatrixWidth], nextRow = new boolean[edgeMatrixWidth], swapRow;
 
 		double oldValue, newValue;
-		int col;
+		int col1;
 		for (int row = 1; row < edgeMatrixHeight; row++) {
-			qSwap = qCurrent;
-			qCurrent = qNext;
-			qNext = qSwap;
+			swapRow = currentRow;
+			currentRow = nextRow;
+			nextRow = swapRow;
+			Arrays.fill(nextRow, false);
 
-			col = seamXValues[row - 1];
-			if (col < edgeMatrixWidth) {
-				qCurrent.add(col);
+			col1 = seamXValues[row - 1];
+			if (col1 < edgeMatrixWidth) {
+				currentRow[col1] = true;
 			}
-			if (col > 0) {
-				qCurrent.add(col - 1);
+			if (col1 > 0) {
+				currentRow[col1 - 1] = true;
 			}
-			if (col < edgeMatrixWidth - 1) {
-				qCurrent.add(col + 1);
+			if (col1 < edgeMatrixWidth - 1) {
+				currentRow[col1 + 1] = true;
 			}
-			while (!qCurrent.isEmpty()) {
-				col = qCurrent.poll();
-				while (!qCurrent.isEmpty() && col == qCurrent.peek()) {
-					qCurrent.poll();// delete duplicates;
-				}
+			for (int col = 0; col < edgeMatrixWidth; col++) {
+				if (currentRow[col]) {
 
-				oldValue = minSeamsMatrix[row][col];
-				newValue = minSeamsMatrix[row - 1][col];
-				if (col != 0) {
-					newValue = Math.min(newValue, minSeamsMatrix[row - 1][col - 1]);
-				}
-				if (col != edgeMatrixWidth - 1) {
-					newValue = Math.min(newValue, minSeamsMatrix[row - 1][col + 1]);
-				}
-				newValue += edgeAndEntropyMatrix[row][col];
+					oldValue = minSeamsMatrix[row][col];
+					newValue = minSeamsMatrix[row - 1][col];
+					if (col != 0) {
+						newValue = Math.min(newValue, minSeamsMatrix[row - 1][col - 1]);
+					}
+					if (col != edgeMatrixWidth - 1) {
+						newValue = Math.min(newValue, minSeamsMatrix[row - 1][col + 1]);
+					}
+					newValue += edgeAndEntropyMatrix[row][col];
 
-				if (newValue != oldValue) {
-					minSeamsMatrix[row][col] = newValue;
-					if (row + 1 < edgeMatrixHeight) {
-						qNext.add(col);
-						if (col != 0) {
-							qNext.add(col - 1);
-						}
-						if (col != edgeMatrixWidth - 1) {
-							qNext.add(col + 1);
+					if (newValue != oldValue) {
+						minSeamsMatrix[row][col] = newValue;
+						if (row + 1 < edgeMatrixHeight) {
+							nextRow[col] = true;
+							if (col != 0) {
+								nextRow[col - 1] = true;
+							}
+							if (col != edgeMatrixWidth - 1) {
+								nextRow[col + 1] = true;
+							}
 						}
 					}
 				}
