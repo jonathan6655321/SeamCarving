@@ -1,6 +1,7 @@
 import java.awt.Point;
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.PriorityQueue;
 import java.util.Queue;
 
@@ -286,46 +287,44 @@ public class SeamCarve {
 
 		int edgeMatrixWidth = edgeAndEntropyMatrix[0].length;
 		int edgeMatrixHeight = edgeAndEntropyMatrix.length;
-		Double d = 0.1, e = 0.1;
-		d.compareTo(e);
-		Queue<Integer> qCurrent = new PriorityQueue<>(), qNext = new PriorityQueue<>(), qSwap;
+
+		boolean[] currentRow = new boolean[edgeMatrixWidth], nextRow = new boolean[edgeMatrixWidth], swapRow;
 
 		double oldValue, newValue;
-		int col;
+		int col1;
 		for (int row = 1; row < edgeMatrixHeight; row++) {
-			qSwap = qCurrent;
-			qCurrent = qNext;
-			qNext = qSwap;
+			swapRow = currentRow;
+			currentRow = nextRow;
+			nextRow = swapRow;
+			Arrays.fill(nextRow, false);
 
-			col = seamXValues[row - 1];
-			if (col < edgeMatrixWidth) {
-				qCurrent.add(col);
+			col1 = seamXValues[row - 1];
+			if (col1 < edgeMatrixWidth) {
+				currentRow[col1] = true;
 			}
-			if (col > 0) {
-				qCurrent.add(col - 1);
+			if (col1 > 0) {
+				currentRow[col1 - 1] = true;
 			}
-			if (col < edgeMatrixWidth - 1) {
-				qCurrent.add(col + 1);
+			if (col1 < edgeMatrixWidth - 1) {
+				currentRow[col1 + 1] = true;
 			}
-			while (!qCurrent.isEmpty()) {
-				col = qCurrent.poll();
-				while (!qCurrent.isEmpty() && col == qCurrent.peek()) {
-					qCurrent.poll();// delete duplicates;
-				}
+			for (int col = 0; col < edgeMatrixWidth; col++) {
+				if (currentRow[col]) {
 
-				oldValue = minSeamsMatrix[row][col];
-				newValue = calculateMinSeamsMatrixForwardingValue(col, row, edgeAndEntropyMatrix, RGBMatrix,
-						minSeamsMatrix);
+					oldValue = minSeamsMatrix[row][col];
+					newValue = calculateMinSeamsMatrixForwardingValue(col, row, edgeAndEntropyMatrix, RGBMatrix,
+							minSeamsMatrix);
 
-				if (newValue != oldValue) {
-					minSeamsMatrix[row][col] = newValue;
-					if (row + 1 < edgeMatrixHeight) {
-						qNext.add(col);
-						if (col != 0) {
-							qNext.add(col - 1);
-						}
-						if (col != edgeMatrixWidth - 1) {
-							qNext.add(col + 1);
+					if (newValue != oldValue) {
+						minSeamsMatrix[row][col] = newValue;
+						if (row + 1 < edgeMatrixHeight) {
+							nextRow[col] = true;
+							if (col != 0) {
+								nextRow[col - 1] = true;
+							}
+							if (col != edgeMatrixWidth - 1) {
+								nextRow[col + 1] = true;
+							}
 						}
 					}
 				}
