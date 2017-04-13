@@ -1,11 +1,15 @@
+import java.awt.Point;
 import java.io.File;
 import java.io.IOException;
+import java.util.PriorityQueue;
+import java.util.Queue;
 
 import javax.imageio.ImageIO;
 
 /* TODO:
  * Enlarge bigger then original*2;
  * to get better result - maybe first scale the picture, and then do seam carve
+ * make enlargement use updateSeamMatrix too
  */
 public class SeamCarve {
 	public static final boolean SHOW_IMAGE = true;
@@ -33,6 +37,9 @@ public class SeamCarve {
 		originalWidth = seamImage.getWidth();
 		originalHeight = seamImage.getHeight();
 
+		double[][] minSeamsMatrix;
+		int[] seamXValues;
+
 		if (isLegitInput(originalWidth, originalHeight, width, height, eType)) {
 
 			if (width > originalWidth) {
@@ -46,16 +53,26 @@ public class SeamCarve {
 				seamImage.rotate90right();
 			}
 			if (width < seamImage.getWidth()) {
+				minSeamsMatrix = calculateMinSeamsMatrixByEnergyType(seamImage, eType);
 				for (int i = 0; i < originalWidth - width; i++) {
-					seamImage.removeVerticalSeam(getMinSeam(calculateMinSeamsMatrixByEnergyType(seamImage, eType)));
+					seamXValues = getMinSeam(minSeamsMatrix);
+					seamImage.removeVerticalSeam(seamXValues);
+					updateMinSeamsMatrixByEnergyType(seamImage, seamXValues, minSeamsMatrix, eType);
 				}
 			}
 
 			if (height < originalHeight) {
 				seamImage.rotate90right();
+
+				minSeamsMatrix = calculateMinSeamsMatrixByEnergyType(seamImage, eType);
+				seamXValues = null;
 				for (int i = 0; i < originalHeight - height; i++) {
-					seamImage.removeVerticalSeam(getMinSeam(calculateMinSeamsMatrixByEnergyType(seamImage, eType)));
+					seamXValues = getMinSeam(minSeamsMatrix);
+					seamImage.removeVerticalSeam(seamXValues);
+					updateMinSeamsMatrixByEnergyType(seamImage, seamXValues, minSeamsMatrix, eType);
+
 				}
+
 				seamImage.rotate90right();
 				seamImage.rotate90right();
 				seamImage.rotate90right();
@@ -143,98 +160,220 @@ public class SeamCarve {
 		double[][] minSeamsMatrix = matrixCopy(edgeAndEntropyMatrix);
 		int edgeMatrixWidth = edgeAndEntropyMatrix[0].length;
 		int edgeMatrixHeight = edgeAndEntropyMatrix.length;
-		double minPath;
-		int cost;
 		for (int row = 1; row < edgeMatrixHeight; row++) {
 			for (int col = 0; col < edgeMatrixWidth; col++) {
-				minPath = Double.MAX_VALUE;
-				if (col - 1 >= 0 && col + 1 < RGBMatrix[0].length) {
-					cost = Math.abs(((RGBMatrix[row][col + 1] >> 16) & 0xff) - ((RGBMatrix[row][col - 1] >> 16) & 0xff))
-							+ Math.abs(
-									((RGBMatrix[row][col + 1] >> 8) & 0xff) - ((RGBMatrix[row][col - 1] >> 8) & 0xff))
-							+ Math.abs(((RGBMatrix[row][col + 1]) & 0xff) - ((RGBMatrix[row][col - 1]) & 0xff));
-				} else
-					cost = 0;
-				minPath = Math.min(minPath, minSeamsMatrix[row - 1][col] + cost);
-				if (col != 0) {
-					cost = Math.abs(((RGBMatrix[row - 1][col] >> 16) & 0xff) - ((RGBMatrix[row][col - 1] >> 16) & 0xff))
-							+ Math.abs(
-									((RGBMatrix[row - 1][col] >> 8) & 0xff) - ((RGBMatrix[row][col - 1] >> 8) & 0xff))
-							+ Math.abs(((RGBMatrix[row - 1][col]) & 0xff) - ((RGBMatrix[row][col - 1]) & 0xff));
-
-					if (col + 1 < RGBMatrix[0].length)
-						cost += Math
-								.abs(((RGBMatrix[row][col - 1] >> 16) & 0xff)
-										- ((RGBMatrix[row][col + 1] >> 16) & 0xff))
-								+ Math.abs(((RGBMatrix[row][col - 1] >> 8) & 0xff)
-										- ((RGBMatrix[row][col + 1] >> 8) & 0xff))
-								+ Math.abs(((RGBMatrix[row][col - 1]) & 0xff) - ((RGBMatrix[row][col + 1]) & 0xff));
-					minPath = Math.min(minPath, minSeamsMatrix[row - 1][col - 1] + cost);
-				}
-				if (col != edgeMatrixWidth - 1) {
-					cost = Math.abs(((RGBMatrix[row - 1][col] >> 16) & 0xff) - ((RGBMatrix[row][col + 1] >> 16) & 0xff))
-							+ Math.abs(
-									((RGBMatrix[row - 1][col] >> 8) & 0xff) - ((RGBMatrix[row][col + 1] >> 8) & 0xff))
-							+ Math.abs(((RGBMatrix[row - 1][col]) & 0xff) - ((RGBMatrix[row][col + 1]) & 0xff));
-
-					if (col - 1 >= 0)
-						cost += Math
-								.abs(((RGBMatrix[row][col + 1] >> 16) & 0xff)
-										- ((RGBMatrix[row][col - 1] >> 16) & 0xff))
-								+ Math.abs(((RGBMatrix[row][col + 1] >> 8) & 0xff)
-										- ((RGBMatrix[row][col - 1] >> 8) & 0xff))
-								+ Math.abs(((RGBMatrix[row][col + 1]) & 0xff) - ((RGBMatrix[row][col - 1]) & 0xff));
-					minPath = Math.min(minPath, minSeamsMatrix[row - 1][col + 1] + cost);
-				}
-				minSeamsMatrix[row][col] = minPath + edgeAndEntropyMatrix[row][col];
+				minSeamsMatrix[row][col] = calculateMinSeamsMatrixForwardingValue(col, row, edgeAndEntropyMatrix,
+						RGBMatrix, minSeamsMatrix);
 			}
 		}
 		return minSeamsMatrix;
+	}
+
+	public static double calculateMinSeamsMatrixForwardingValue(int col, int row, double[][] edgeAndEntropyMatrix,
+			int[][] RGBMatrix, double[][] minSeamsMatrix) {
+		double minPath = Double.MAX_VALUE;
+		double costUp = 0, costLeft, costRight;
+		if (col != 0) {
+			costLeft = Math.abs(((RGBMatrix[row - 1][col] >> 16) & 0xff) - ((RGBMatrix[row][col - 1] >> 16) & 0xff))
+					+ Math.abs(((RGBMatrix[row - 1][col] >> 8) & 0xff) - ((RGBMatrix[row][col - 1] >> 8) & 0xff))
+					+ Math.abs(((RGBMatrix[row - 1][col]) & 0xff) - ((RGBMatrix[row][col - 1]) & 0xff));
+
+			if (col + 1 != RGBMatrix[0].length) {
+				costUp = Math.abs(((RGBMatrix[row][col + 1] >> 16) & 0xff) - ((RGBMatrix[row][col - 1] >> 16) & 0xff))
+						+ Math.abs(((RGBMatrix[row][col + 1] >> 8) & 0xff) - ((RGBMatrix[row][col - 1] >> 8) & 0xff))
+						+ Math.abs(((RGBMatrix[row][col + 1]) & 0xff) - ((RGBMatrix[row][col - 1]) & 0xff));
+				costLeft += Math
+						.abs(((RGBMatrix[row][col - 1] >> 16) & 0xff) - ((RGBMatrix[row][col + 1] >> 16) & 0xff))
+						+ Math.abs(((RGBMatrix[row][col - 1] >> 8) & 0xff) - ((RGBMatrix[row][col + 1] >> 8) & 0xff))
+						+ Math.abs(((RGBMatrix[row][col - 1]) & 0xff) - ((RGBMatrix[row][col + 1]) & 0xff));
+				costRight = Math
+						.abs(((RGBMatrix[row - 1][col] >> 16) & 0xff) - ((RGBMatrix[row][col + 1] >> 16) & 0xff))
+						+ Math.abs(((RGBMatrix[row - 1][col] >> 8) & 0xff) - ((RGBMatrix[row][col + 1] >> 8) & 0xff))
+						+ Math.abs(((RGBMatrix[row - 1][col]) & 0xff) - ((RGBMatrix[row][col + 1]) & 0xff))
+						+ Math.abs(((RGBMatrix[row][col + 1] >> 16) & 0xff) - ((RGBMatrix[row][col - 1] >> 16) & 0xff))
+						+ Math.abs(((RGBMatrix[row][col + 1] >> 8) & 0xff) - ((RGBMatrix[row][col - 1] >> 8) & 0xff))
+						+ Math.abs(((RGBMatrix[row][col + 1]) & 0xff) - ((RGBMatrix[row][col - 1]) & 0xff));
+				minPath = Math.min(minPath, minSeamsMatrix[row - 1][col + 1] + costRight);
+			}
+			minPath = Math.min(minPath, minSeamsMatrix[row - 1][col - 1] + costLeft);
+		} else if (col + 1 != RGBMatrix[0].length) {
+			costRight = Math.abs(((RGBMatrix[row - 1][col] >> 16) & 0xff) - ((RGBMatrix[row][col + 1] >> 16) & 0xff))
+					+ Math.abs(((RGBMatrix[row - 1][col] >> 8) & 0xff) - ((RGBMatrix[row][col + 1] >> 8) & 0xff))
+					+ Math.abs(((RGBMatrix[row - 1][col]) & 0xff) - ((RGBMatrix[row][col + 1]) & 0xff));
+			minPath = Math.min(minPath, minSeamsMatrix[row - 1][col + 1] + costRight);
+		}
+		minPath = Math.min(minPath, minSeamsMatrix[row - 1][col] + costUp);
+		return minPath + edgeAndEntropyMatrix[row][col];
+	}
+
+	// update matrix:
+	public static void updateMinSeamsMatrixByEnergyType(SeamImage image, int[] seamXValues, double[][] minSeamsMatrix,
+			EnergyType eType) {
+		switch (eType) {
+		case EnergyWithoutEntropy:
+			updateMinSeamsMatrix(minSeamsMatrix, seamXValues, image.getEdgeMatrix());
+			break;
+		case EnergyWithEntropy:
+			updateMinSeamsMatrix(minSeamsMatrix, seamXValues, image.getEdgeAndEntropyMatrix());
+			break;
+		case EnergyForwarding:
+			updateMinSeamsMatrixForwarding(minSeamsMatrix, seamXValues, image.getEdgeAndEntropyMatrix(),
+					image.getRGBMatrix());
+			break;
+		}
+	}
+
+	public static void updateMinSeamsMatrix(double[][] minSeamsMatrix, int[] seamXValues,
+			double[][] edgeAndEntropyMatrix) {
+		Matrix.removeSeam(seamXValues, minSeamsMatrix);
+
+		int edgeMatrixWidth = edgeAndEntropyMatrix[0].length;
+		int edgeMatrixHeight = edgeAndEntropyMatrix.length;
+		Queue<Integer> qCurrent = new PriorityQueue<>(), qNext = new PriorityQueue<>(), qSwap;
+
+		double oldValue, newValue;
+		int col;
+		for (int row = 1; row < edgeMatrixHeight; row++) {
+			qSwap = qCurrent;
+			qCurrent = qNext;
+			qNext = qSwap;
+
+			col = seamXValues[row - 1];
+			if (col < edgeMatrixWidth) {
+				qCurrent.add(col);
+			}
+			if (col > 0) {
+				qCurrent.add(col - 1);
+			}
+			if (col < edgeMatrixWidth - 1) {
+				qCurrent.add(col + 1);
+			}
+			while (!qCurrent.isEmpty()) {
+				col = qCurrent.poll();
+				while (!qCurrent.isEmpty() && col == qCurrent.peek()) {
+					qCurrent.poll();// delete duplicates;
+				}
+
+				oldValue = minSeamsMatrix[row][col];
+				newValue = minSeamsMatrix[row - 1][col];
+				if (col != 0) {
+					newValue = Math.min(newValue, minSeamsMatrix[row - 1][col - 1]);
+				}
+				if (col != edgeMatrixWidth - 1) {
+					newValue = Math.min(newValue, minSeamsMatrix[row - 1][col + 1]);
+				}
+				newValue += edgeAndEntropyMatrix[row][col];
+
+				if (newValue != oldValue) {
+					minSeamsMatrix[row][col] = newValue;
+					if (row + 1 < edgeMatrixHeight) {
+						qNext.add(col);
+						if (col != 0) {
+							qNext.add(col - 1);
+						}
+						if (col != edgeMatrixWidth - 1) {
+							qNext.add(col + 1);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	public static void updateMinSeamsMatrixForwarding(double[][] minSeamsMatrix, int[] seamXValues,
+			double[][] edgeAndEntropyMatrix, int[][] RGBMatrix) {
+		Matrix.removeSeam(seamXValues, minSeamsMatrix);
+
+		int edgeMatrixWidth = edgeAndEntropyMatrix[0].length;
+		int edgeMatrixHeight = edgeAndEntropyMatrix.length;
+		Double d = 0.1, e = 0.1;
+		d.compareTo(e);
+		Queue<Integer> qCurrent = new PriorityQueue<>(), qNext = new PriorityQueue<>(), qSwap;
+
+		double oldValue, newValue;
+		int col;
+		for (int row = 1; row < edgeMatrixHeight; row++) {
+			qSwap = qCurrent;
+			qCurrent = qNext;
+			qNext = qSwap;
+
+			col = seamXValues[row - 1];
+			if (col < edgeMatrixWidth) {
+				qCurrent.add(col);
+			}
+			if (col > 0) {
+				qCurrent.add(col - 1);
+			}
+			if (col < edgeMatrixWidth - 1) {
+				qCurrent.add(col + 1);
+			}
+			while (!qCurrent.isEmpty()) {
+				col = qCurrent.poll();
+				while (!qCurrent.isEmpty() && col == qCurrent.peek()) {
+					qCurrent.poll();// delete duplicates;
+				}
+
+				oldValue = minSeamsMatrix[row][col];
+				newValue = calculateMinSeamsMatrixForwardingValue(col, row, edgeAndEntropyMatrix, RGBMatrix,
+						minSeamsMatrix);
+
+				if (newValue != oldValue) {
+					minSeamsMatrix[row][col] = newValue;
+					if (row + 1 < edgeMatrixHeight) {
+						qNext.add(col);
+						if (col != 0) {
+							qNext.add(col - 1);
+						}
+						if (col != edgeMatrixWidth - 1) {
+							qNext.add(col + 1);
+						}
+					}
+				}
+			}
+		}
 
 	}
 
-//	// from left to right going down.
-//	private static double costLeft(int row, int col, int[][] RGBMatrix) {
-//		double cost = Math.abs(((RGBMatrix[row - 1][col] >> 16) & 0xff) - ((RGBMatrix[row][col - 1] >> 16) & 0xff))
-//				+ Math.abs(((RGBMatrix[row - 1][col] >> 8) & 0xff) - ((RGBMatrix[row][col - 1] >> 8) & 0xff))
-//				+ Math.abs(((RGBMatrix[row - 1][col]) & 0xff) - ((RGBMatrix[row][col - 1]) & 0xff));
-//
-//		if (col + 1 < RGBMatrix[0].length)
-//			cost += Math.abs(((RGBMatrix[row][col - 1] >> 16) & 0xff) - ((RGBMatrix[row][col + 1] >> 16) & 0xff))
-//					+ Math.abs(((RGBMatrix[row][col - 1] >> 8) & 0xff) - ((RGBMatrix[row][col + 1] >> 8) & 0xff))
-//					+ Math.abs(((RGBMatrix[row][col - 1]) & 0xff) - ((RGBMatrix[row][col + 1]) & 0xff));
-//		return cost;
-//	}
-//
-//	// from right to left going down.
-//	private static double costRight(int row, int col, int[][] RGBMatrix) {
-//		double cost = Math.abs(((RGBMatrix[row - 1][col] >> 16) & 0xff) - ((RGBMatrix[row][col + 1] >> 16) & 0xff))
-//				+ Math.abs(((RGBMatrix[row - 1][col] >> 8) & 0xff) - ((RGBMatrix[row][col + 1] >> 8) & 0xff))
-//				+ Math.abs(((RGBMatrix[row - 1][col]) & 0xff) - ((RGBMatrix[row][col + 1]) & 0xff));
-//
-//		if (col - 1 >= 0)
-//			cost += Math.abs(((RGBMatrix[row][col + 1] >> 16) & 0xff) - ((RGBMatrix[row][col - 1] >> 16) & 0xff))
-//					+ Math.abs(((RGBMatrix[row][col + 1] >> 8) & 0xff) - ((RGBMatrix[row][col - 1] >> 8) & 0xff))
-//					+ Math.abs(((RGBMatrix[row][col + 1]) & 0xff) - ((RGBMatrix[row][col - 1]) & 0xff));
-//		return cost;
-//	}
-//
-//	// from above
-//	private static double costUp(int row, int col, int[][] RGBMatrix) {
-//		if (col - 1 >= 0 && col + 1 < RGBMatrix[0].length) {
-//			double cost = Math.abs(((RGBMatrix[row][col + 1] >> 16) & 0xff) - ((RGBMatrix[row][col - 1] >> 16) & 0xff))
-//					+ Math.abs(((RGBMatrix[row][col + 1] >> 8) & 0xff) - ((RGBMatrix[row][col - 1] >> 8) & 0xff))
-//					+ Math.abs(((RGBMatrix[row][col + 1]) & 0xff) - ((RGBMatrix[row][col - 1]) & 0xff));
-//			return cost;
-//		} else
-//			return 0;
-//	}
+	/*
+	 * // // from left to right going down. // private static double
+	 * costLeft(int row, int col, int[][] RGBMatrix) { // double cost =
+	 * Math.abs(((RGBMatrix[row - 1][col] >> 16) & 0xff) - //
+	 * ((RGBMatrix[row][col - 1] >> 16) & 0xff)) // + Math.abs(((RGBMatrix[row -
+	 * 1][col] >> 8) & 0xff) - ((RGBMatrix[row][col // - 1] >> 8) & 0xff)) // +
+	 * Math.abs(((RGBMatrix[row - 1][col]) & 0xff) - ((RGBMatrix[row][col - //
+	 * 1]) & 0xff)); // // if (col + 1 < RGBMatrix[0].length) // cost +=
+	 * Math.abs(((RGBMatrix[row][col - 1] >> 16) & 0xff) - //
+	 * ((RGBMatrix[row][col + 1] >> 16) & 0xff)) // +
+	 * Math.abs(((RGBMatrix[row][col - 1] >> 8) & 0xff) - ((RGBMatrix[row][col
+	 * // + 1] >> 8) & 0xff)) // + Math.abs(((RGBMatrix[row][col - 1]) & 0xff) -
+	 * ((RGBMatrix[row][col + // 1]) & 0xff)); // return cost; // } // // //
+	 * from right to left going down. // private static double costRight(int
+	 * row, int col, int[][] RGBMatrix) { // double cost =
+	 * Math.abs(((RGBMatrix[row - 1][col] >> 16) & 0xff) - //
+	 * ((RGBMatrix[row][col + 1] >> 16) & 0xff)) // + Math.abs(((RGBMatrix[row -
+	 * 1][col] >> 8) & 0xff) - ((RGBMatrix[row][col // + 1] >> 8) & 0xff)) // +
+	 * Math.abs(((RGBMatrix[row - 1][col]) & 0xff) - ((RGBMatrix[row][col + //
+	 * 1]) & 0xff)); // // if (col - 1 >= 0) // cost +=
+	 * Math.abs(((RGBMatrix[row][col + 1] >> 16) & 0xff) - //
+	 * ((RGBMatrix[row][col - 1] >> 16) & 0xff)) // +
+	 * Math.abs(((RGBMatrix[row][col + 1] >> 8) & 0xff) - ((RGBMatrix[row][col
+	 * // - 1] >> 8) & 0xff)) // + Math.abs(((RGBMatrix[row][col + 1]) & 0xff) -
+	 * ((RGBMatrix[row][col - // 1]) & 0xff)); // return cost; // } // // //
+	 * from above // private static double costUp(int row, int col, int[][]
+	 * RGBMatrix) { // if (col - 1 >= 0 && col + 1 < RGBMatrix[0].length) { //
+	 * double cost = Math.abs(((RGBMatrix[row][col + 1] >> 16) & 0xff) - //
+	 * ((RGBMatrix[row][col - 1] >> 16) & 0xff)) // +
+	 * Math.abs(((RGBMatrix[row][col + 1] >> 8) & 0xff) - ((RGBMatrix[row][col
+	 * // - 1] >> 8) & 0xff)) // + Math.abs(((RGBMatrix[row][col + 1]) & 0xff) -
+	 * ((RGBMatrix[row][col - // 1]) & 0xff)); // return cost; // } else //
+	 * return 0; // }
+	 */
 
 	public static int[] getMinSeam(double[][] minSeamsMatrix) {
 		int numCol = minSeamsMatrix[0].length;
 		int numRows = minSeamsMatrix.length;
 		int[] seam = new int[numRows];
-		seam[numRows - 1] = minElementsIndex(minSeamsMatrix[numRows - 1]);
+		seam[numRows - 1] = getMinElementsIndex(minSeamsMatrix[numRows - 1]);
 
 		for (int i = numRows - 2; i >= 0; i--) {
 			int prevIndex = seam[i + 1];
@@ -323,7 +462,7 @@ public class SeamCarve {
 		return kMinSeams;
 	}
 
-	public static int minElementsIndex(double[] arr) {
+	public static int getMinElementsIndex(double[] arr) {
 		double min = arr[0];
 		int j = 0;
 
@@ -333,7 +472,6 @@ public class SeamCarve {
 				j = i;
 			}
 		}
-
 		return j;
 	}
 
