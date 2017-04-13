@@ -249,14 +249,16 @@ public class SeamImage {
 		int numberOfNeightbors = 0;
 		int sum = 0;
 		int value;
-		int x, cnt;
+		int x = (1 << 8), cnt = 8;
 		for (int i = Math.max(row - 4, 0); i < Math.min(row + 5, numberOfRows); i++) {
 			for (int j = Math.max(col - 4, 0); j < Math.min(col + 5, numberOfColumns); j++) {
 				numberOfNeightbors++;
 				// need to add 1 so there wont be any zeros.
 				value = (10000 * (grayscaleMatrix[i][j] + 1)) / (grayscale9X9BlurMatrix[i][j] + 1);
-				x = 1;
-				cnt = 0;
+				while (x > value && x != 1) {
+					x >>= 1;
+					cnt--;
+				}
 				while (x < value) {
 					x <<= 1;
 					cnt++;
