@@ -35,47 +35,58 @@ public class SeamCarve {
 		originalWidth = seamImage.getWidth();
 		originalHeight = seamImage.getHeight();
 
-		double[][] minSeamsMatrix;
-		int[] seamXValues;
-
 		if (isLegitInput(originalWidth, originalHeight, width, height, eType)) {
+			while (width - originalWidth > originalWidth) {
+				seamImage.enlargeImageHorizontallyByK(getScaleSeam(seamImage));
+				originalWidth += originalWidth;
+			}
+			seamImage.rotate90right();
+			while (height - originalHeight > originalHeight) {
+				seamImage.enlargeImageHorizontallyByK(getScaleSeam(seamImage));
+				originalHeight *= 2;
+			}
+			seamImage.rotate90right();
+			seamImage.rotate90right();
+			seamImage.rotate90right();
+
 			if (width > originalWidth) {
-				while (width - originalWidth > originalWidth) {
-					seamImage.enlargeImageHorizontallyByK(getKMinSeams(originalWidth, seamImage, eType));
-					originalWidth += originalWidth;
-				}
-				seamImage.enlargeImageHorizontallyByK(getKMinSeams(width - originalWidth, seamImage, eType));
+				seamImage.enlargeImageHorizontallyByK(
+						removeKSeams(width - originalWidth, new SeamImage(seamImage), eType));
 			}
 			if (height > originalHeight) {
 				seamImage.rotate90right();
-				while (height - originalHeight > originalHeight) {
-					seamImage.enlargeImageHorizontallyByK(getKMinSeams(originalHeight, seamImage, eType));
-					originalHeight += originalHeight;
-				}
-				seamImage.enlargeImageHorizontallyByK(getKMinSeams(height - originalHeight, seamImage, eType));
+
+				seamImage.enlargeImageHorizontallyByK(
+						removeKSeams(height - originalHeight, new SeamImage(seamImage), eType));
 				seamImage.rotate90right();
 				seamImage.rotate90right();
 				seamImage.rotate90right();
 			}
-			if (width < seamImage.getWidth()) {
-				minSeamsMatrix = calculateMinSeamsMatrixByEnergyType(seamImage, eType);
-				for (int i = 0; i < originalWidth - width; i++) {
-					seamXValues = getMinSeam(minSeamsMatrix);
-					seamImage.removeVerticalSeam(seamXValues);
-					updateMinSeamsMatrixByEnergyType(seamImage, seamXValues, minSeamsMatrix, eType);
-				}
+			if (width < originalWidth) {
+				removeKSeams(originalWidth - width, seamImage, eType);
+				// minSeamsMatrix =
+				// calculateMinSeamsMatrixByEnergyType(seamImage, eType);
+				// for (int i = 0; i < originalWidth - width; i++) {
+				// seamXValues = getMinSeam(minSeamsMatrix);
+				// seamImage.removeVerticalSeam(seamXValues);
+				// updateMinSeamsMatrixByEnergyType(seamImage, seamXValues,
+				// minSeamsMatrix, eType);
+				// }
 			}
 			if (height < originalHeight) {
 				seamImage.rotate90right();
+				removeKSeams(originalHeight - height, seamImage, eType);
 
-				minSeamsMatrix = calculateMinSeamsMatrixByEnergyType(seamImage, eType);
-				seamXValues = null;
-				for (int i = 0; i < originalHeight - height; i++) {
-					seamXValues = getMinSeam(minSeamsMatrix);
-					seamImage.removeVerticalSeam(seamXValues);
-					updateMinSeamsMatrixByEnergyType(seamImage, seamXValues, minSeamsMatrix, eType);
-
-				}
+				// minSeamsMatrix =
+				// calculateMinSeamsMatrixByEnergyType(seamImage, eType);
+				// seamXValues = null;
+				// for (int i = 0; i < originalHeight - height; i++) {
+				// seamXValues = getMinSeam(minSeamsMatrix);
+				// seamImage.removeVerticalSeam(seamXValues);
+				// updateMinSeamsMatrixByEnergyType(seamImage, seamXValues,
+				// minSeamsMatrix, eType);
+				//
+				// }
 				seamImage.rotate90right();
 				seamImage.rotate90right();
 				seamImage.rotate90right();
@@ -117,7 +128,7 @@ public class SeamCarve {
 		return true;
 	}
 
-	public static void saveImageToFile(SeamImage im, String outputFilePath) {
+	private static void saveImageToFile(SeamImage im, String outputFilePath) {
 		try {
 			ImageIO.write(im.getImage(), "JPG", new File(outputFilePath));
 		} catch (IOException e) {
@@ -126,7 +137,7 @@ public class SeamCarve {
 		}
 	}
 
-	public static double[][] calculateMinSeamsMatrixByEnergyType(SeamImage image, EnergyType eType) {
+	private static double[][] calculateMinSeamsMatrixByEnergyType(SeamImage image, EnergyType eType) {
 		switch (eType) {
 		case EnergyWithoutEntropy:
 			int[][] matrix = image.getEdgeMatrix();
@@ -144,7 +155,7 @@ public class SeamCarve {
 		return null;
 	}
 
-	public static double[][] calculateMinSeamsMatrix(double[][] edgeAndEntropyMatrix) {
+	private static double[][] calculateMinSeamsMatrix(double[][] edgeAndEntropyMatrix) {
 		double[][] minSeamsMatrix = edgeAndEntropyMatrix;
 		int edgeMatrixWidth = edgeAndEntropyMatrix[0].length;
 		int edgeMatrixHeight = edgeAndEntropyMatrix.length;
@@ -165,7 +176,7 @@ public class SeamCarve {
 		return minSeamsMatrix;
 	}
 
-	public static double[][] calculateMinSeamsMatrixForwarding(double[][] edgeAndEntropyMatrix, int[][] RGBMatrix) {
+	private static double[][] calculateMinSeamsMatrixForwarding(double[][] edgeAndEntropyMatrix, int[][] RGBMatrix) {
 		double[][] minSeamsMatrix = edgeAndEntropyMatrix;
 		int edgeMatrixWidth = edgeAndEntropyMatrix[0].length;
 		int edgeMatrixHeight = edgeAndEntropyMatrix.length;
@@ -178,7 +189,7 @@ public class SeamCarve {
 		return minSeamsMatrix;
 	}
 
-	public static double calculateMinSeamsMatrixForwardingValue(int col, int row, double[][] edgeAndEntropyMatrix,
+	private static double calculateMinSeamsMatrixForwardingValue(int col, int row, double[][] edgeAndEntropyMatrix,
 			int[][] RGBMatrix, double[][] minSeamsMatrix) {
 		double minPath = Double.MAX_VALUE;
 		double costUp = 0, costLeft, costRight;
@@ -216,7 +227,7 @@ public class SeamCarve {
 	}
 
 	// update matrix:
-	public static void updateMinSeamsMatrixByEnergyType(SeamImage image, int[] seamXValues, double[][] minSeamsMatrix,
+	private static void updateMinSeamsMatrixByEnergyType(SeamImage image, int[] seamXValues, double[][] minSeamsMatrix,
 			EnergyType eType) {
 		switch (eType) {
 		case EnergyWithoutEntropy:
@@ -238,7 +249,7 @@ public class SeamCarve {
 		}
 	}
 
-	public static void updateMinSeamsMatrix(double[][] minSeamsMatrix, int[] seamXValues,
+	private static void updateMinSeamsMatrix(double[][] minSeamsMatrix, int[] seamXValues,
 			double[][] edgeAndEntropyMatrix) {
 		Matrix.removeSeam(seamXValues, minSeamsMatrix);
 
@@ -295,7 +306,7 @@ public class SeamCarve {
 		}
 	}
 
-	public static void updateMinSeamsMatrixForwarding(double[][] minSeamsMatrix, int[] seamXValues,
+	private static void updateMinSeamsMatrixForwarding(double[][] minSeamsMatrix, int[] seamXValues,
 			double[][] edgeAndEntropyMatrix, int[][] RGBMatrix) {
 		Matrix.removeSeam(seamXValues, minSeamsMatrix);
 
@@ -347,7 +358,7 @@ public class SeamCarve {
 
 	}
 
-	public static int[] getMinSeam(double[][] minSeamsMatrix) {
+	private static int[] getMinSeam(double[][] minSeamsMatrix) {
 		int numCol = minSeamsMatrix[0].length;
 		int numRows = minSeamsMatrix.length;
 		int[] seam = new int[numRows];
@@ -373,19 +384,18 @@ public class SeamCarve {
 		return seam;
 	}
 
-	public static int[][] getKMinSeams(int k, SeamImage seamImage, EnergyType eType) {
+	private static int[][] removeKSeams(int k, SeamImage seamImage, EnergyType eType) {
 		int numRows = seamImage.getEdgeAndEntropyMatrix().length;
 		int numCols = seamImage.getEdgeAndEntropyMatrix()[0].length;
 		int[][] kMinSeams = new int[k][numRows];
-		SeamImage seamImageClone = new SeamImage(seamImage);
 
 		double[][] minSeamsMatrix = calculateMinSeamsMatrixByEnergyType(seamImage, eType);
 		boolean[][] isInSeam = new boolean[numRows][numCols];
 
 		for (int i = 0; i < k; i++) {
 			kMinSeams[i] = getMinSeam(minSeamsMatrix);
-			seamImageClone.removeVerticalSeam(kMinSeams[i]);
-			updateMinSeamsMatrixByEnergyType(seamImageClone, kMinSeams[i], minSeamsMatrix, eType);
+			seamImage.removeVerticalSeam(kMinSeams[i]);
+			updateMinSeamsMatrixByEnergyType(seamImage, kMinSeams[i], minSeamsMatrix, eType);
 			for (int row = 0; row < numRows; row++) {
 				int offset = 0;
 				for (int col = 0; col <= kMinSeams[i][row]; col++) {
@@ -402,7 +412,7 @@ public class SeamCarve {
 		return calculateTrueInsertedIndex(kMinSeams);
 	}
 
-	public static int[][] calculateTrueInsertedIndex(int[][] kMinSeams) {
+	private static int[][] calculateTrueInsertedIndex(int[][] kMinSeams) {
 		int numRows = kMinSeams[0].length;
 		for (int i = 0; i < numRows; i++) // iterate over rows
 		{
@@ -434,7 +444,7 @@ public class SeamCarve {
 		return kMinSeams;
 	}
 
-	public static int getMinElementsIndex(double[] arr) {
+	private static int getMinElementsIndex(double[] arr) {
 		double min = arr[0];
 		int j = 0;
 
@@ -445,5 +455,17 @@ public class SeamCarve {
 			}
 		}
 		return j;
+	}
+
+	private static int[][] getScaleSeam(SeamImage image) {
+		int width = image.getWidth();
+		int height = image.getHeight();
+		int[][] seams = new int[width][height];
+		for (int i = 0; i < width; i++) {
+			for (int j = 0; j < height; j++) {
+				seams[i][j] = 2 * i;
+			}
+		}
+		return seams;
 	}
 }

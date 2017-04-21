@@ -16,7 +16,7 @@ public class SeamImage {
 	private double[][] edgeAndEntropyMatrix;
 	private int[][] edgeMatrix, entropyMatrix, grayscaleMatrix, grayscale9X9BlurMatrix;
 	private int[][] RGBMatrix;
-	boolean changed = false;
+	private boolean changed = false;
 
 	// constructors:
 	public SeamImage(String imageFileName) {
@@ -258,6 +258,8 @@ public class SeamImage {
 				numberOfNeightbors++;
 				// need to add 1 so there wont be any zeros.
 				value = (10000 * (grayscaleMatrix[i][j] + 1)) / (grayscale9X9BlurMatrix[i][j] + 1);
+
+				// a log base 2 function:
 				while (x > value && x != 1) {
 					x >>= 1;
 					cnt--;
@@ -278,7 +280,8 @@ public class SeamImage {
 		return sum;
 	}
 
-	private static int calculateAvarageColorBasedOnNeightbors(int leftPixel, int currentPixel, int rightPixel) {
+	private static int calculateAvarageColorBasedOnNeightbors(int leftPixel, int rightPixel) {
+		int currentPixel;
 		if (FILL_ENLARGE) {
 			currentPixel = ((((leftPixel >> 16) & 0xff) + ((rightPixel >> 16) & 0xff)) / 2) << 16;
 			currentPixel += ((((leftPixel >> 8) & 0xff) + ((rightPixel >> 8) & 0xff)) / 2) << 8;
@@ -326,20 +329,18 @@ public class SeamImage {
 		// calculate averages for new seams:
 		int leftPixel, currentPixel, rightPixel;
 
-		for (int[] currentRow : resMatrix) {// TODO:Parralel
+		for (int[] currentRow : resMatrix) {
 			leftPixel = rightPixel = currentRow[1];
 			currentPixel = currentRow[0];
 			if (currentPixel == -1) {
-				currentRow[0] = currentPixel = calculateAvarageColorBasedOnNeightbors(leftPixel, currentPixel,
-						rightPixel);
+				currentRow[0] = currentPixel = calculateAvarageColorBasedOnNeightbors(leftPixel, rightPixel);
 			}
 			for (int col = 2; col < currentRow.length; col++) {
 				leftPixel = currentPixel;
 				currentPixel = rightPixel;
 				rightPixel = currentRow[col];
 				if (currentPixel == -1) {
-					currentRow[col - 1] = currentPixel = calculateAvarageColorBasedOnNeightbors(leftPixel, currentPixel,
-							rightPixel);
+					currentRow[col - 1] = currentPixel = calculateAvarageColorBasedOnNeightbors(leftPixel, rightPixel);
 				}
 			}
 			leftPixel = currentPixel;
@@ -347,7 +348,7 @@ public class SeamImage {
 			rightPixel = leftPixel;
 			if (currentPixel == -1) {
 				currentRow[currentRow.length - 1] = currentPixel = calculateAvarageColorBasedOnNeightbors(leftPixel,
-						currentPixel, rightPixel);
+						rightPixel);
 			}
 		}
 
