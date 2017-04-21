@@ -1,9 +1,6 @@
-import java.awt.Point;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.PriorityQueue;
-import java.util.Queue;
 
 import javax.imageio.ImageIO;
 
@@ -43,10 +40,18 @@ public class SeamCarve {
 
 		if (isLegitInput(originalWidth, originalHeight, width, height, eType)) {
 			if (width > originalWidth) {
+				while (width - originalWidth > originalWidth) {
+					seamImage.enlargeImageHorizontallyByK(getKMinSeams(originalWidth, seamImage, eType));
+					originalWidth += originalWidth;
+				}
 				seamImage.enlargeImageHorizontallyByK(getKMinSeams(width - originalWidth, seamImage, eType));
 			}
 			if (height > originalHeight) {
 				seamImage.rotate90right();
+				while (height - originalHeight > originalHeight) {
+					seamImage.enlargeImageHorizontallyByK(getKMinSeams(originalHeight, seamImage, eType));
+					originalHeight += originalHeight;
+				}
 				seamImage.enlargeImageHorizontallyByK(getKMinSeams(height - originalHeight, seamImage, eType));
 				seamImage.rotate90right();
 				seamImage.rotate90right();
@@ -140,7 +145,7 @@ public class SeamCarve {
 	}
 
 	public static double[][] calculateMinSeamsMatrix(double[][] edgeAndEntropyMatrix) {
-		double[][] minSeamsMatrix = matrixCopy(edgeAndEntropyMatrix);
+		double[][] minSeamsMatrix = edgeAndEntropyMatrix;
 		int edgeMatrixWidth = edgeAndEntropyMatrix[0].length;
 		int edgeMatrixHeight = edgeAndEntropyMatrix.length;
 
@@ -161,7 +166,7 @@ public class SeamCarve {
 	}
 
 	public static double[][] calculateMinSeamsMatrixForwarding(double[][] edgeAndEntropyMatrix, int[][] RGBMatrix) {
-		double[][] minSeamsMatrix = matrixCopy(edgeAndEntropyMatrix);
+		double[][] minSeamsMatrix = edgeAndEntropyMatrix;
 		int edgeMatrixWidth = edgeAndEntropyMatrix[0].length;
 		int edgeMatrixHeight = edgeAndEntropyMatrix.length;
 		for (int row = 1; row < edgeMatrixHeight; row++) {
@@ -342,41 +347,6 @@ public class SeamCarve {
 
 	}
 
-	/*
-	 * // // from left to right going down. // private static double
-	 * costLeft(int row, int col, int[][] RGBMatrix) { // double cost =
-	 * Math.abs(((RGBMatrix[row - 1][col] >> 16) & 0xff) - //
-	 * ((RGBMatrix[row][col - 1] >> 16) & 0xff)) // + Math.abs(((RGBMatrix[row -
-	 * 1][col] >> 8) & 0xff) - ((RGBMatrix[row][col // - 1] >> 8) & 0xff)) // +
-	 * Math.abs(((RGBMatrix[row - 1][col]) & 0xff) - ((RGBMatrix[row][col - //
-	 * 1]) & 0xff)); // // if (col + 1 < RGBMatrix[0].length) // cost +=
-	 * Math.abs(((RGBMatrix[row][col - 1] >> 16) & 0xff) - //
-	 * ((RGBMatrix[row][col + 1] >> 16) & 0xff)) // +
-	 * Math.abs(((RGBMatrix[row][col - 1] >> 8) & 0xff) - ((RGBMatrix[row][col
-	 * // + 1] >> 8) & 0xff)) // + Math.abs(((RGBMatrix[row][col - 1]) & 0xff) -
-	 * ((RGBMatrix[row][col + // 1]) & 0xff)); // return cost; // } // // //
-	 * from right to left going down. // private static double costRight(int
-	 * row, int col, int[][] RGBMatrix) { // double cost =
-	 * Math.abs(((RGBMatrix[row - 1][col] >> 16) & 0xff) - //
-	 * ((RGBMatrix[row][col + 1] >> 16) & 0xff)) // + Math.abs(((RGBMatrix[row -
-	 * 1][col] >> 8) & 0xff) - ((RGBMatrix[row][col // + 1] >> 8) & 0xff)) // +
-	 * Math.abs(((RGBMatrix[row - 1][col]) & 0xff) - ((RGBMatrix[row][col + //
-	 * 1]) & 0xff)); // // if (col - 1 >= 0) // cost +=
-	 * Math.abs(((RGBMatrix[row][col + 1] >> 16) & 0xff) - //
-	 * ((RGBMatrix[row][col - 1] >> 16) & 0xff)) // +
-	 * Math.abs(((RGBMatrix[row][col + 1] >> 8) & 0xff) - ((RGBMatrix[row][col
-	 * // - 1] >> 8) & 0xff)) // + Math.abs(((RGBMatrix[row][col + 1]) & 0xff) -
-	 * ((RGBMatrix[row][col - // 1]) & 0xff)); // return cost; // } // // //
-	 * from above // private static double costUp(int row, int col, int[][]
-	 * RGBMatrix) { // if (col - 1 >= 0 && col + 1 < RGBMatrix[0].length) { //
-	 * double cost = Math.abs(((RGBMatrix[row][col + 1] >> 16) & 0xff) - //
-	 * ((RGBMatrix[row][col - 1] >> 16) & 0xff)) // +
-	 * Math.abs(((RGBMatrix[row][col + 1] >> 8) & 0xff) - ((RGBMatrix[row][col
-	 * // - 1] >> 8) & 0xff)) // + Math.abs(((RGBMatrix[row][col + 1]) & 0xff) -
-	 * ((RGBMatrix[row][col - // 1]) & 0xff)); // return cost; // } else //
-	 * return 0; // }
-	 */
-
 	public static int[] getMinSeam(double[][] minSeamsMatrix) {
 		int numCol = minSeamsMatrix[0].length;
 		int numRows = minSeamsMatrix.length;
@@ -407,13 +377,15 @@ public class SeamCarve {
 		int numRows = seamImage.getEdgeAndEntropyMatrix().length;
 		int numCols = seamImage.getEdgeAndEntropyMatrix()[0].length;
 		int[][] kMinSeams = new int[k][numRows];
-		SeamImage seamImageClone = new SeamImage(seamImage.getImage());
+		SeamImage seamImageClone = new SeamImage(seamImage);
 
+		double[][] minSeamsMatrix = calculateMinSeamsMatrixByEnergyType(seamImage, eType);
 		boolean[][] isInSeam = new boolean[numRows][numCols];
 
 		for (int i = 0; i < k; i++) {
-			kMinSeams[i] = getMinSeam(calculateMinSeamsMatrixByEnergyType(seamImageClone, eType));
+			kMinSeams[i] = getMinSeam(minSeamsMatrix);
 			seamImageClone.removeVerticalSeam(kMinSeams[i]);
+			updateMinSeamsMatrixByEnergyType(seamImageClone, kMinSeams[i], minSeamsMatrix, eType);
 			for (int row = 0; row < numRows; row++) {
 				int offset = 0;
 				for (int col = 0; col <= kMinSeams[i][row]; col++) {
@@ -424,6 +396,7 @@ public class SeamCarve {
 				kMinSeams[i][row] += offset;
 				isInSeam[row][kMinSeams[i][row]] = true;
 			}
+
 		}
 
 		return calculateTrueInsertedIndex(kMinSeams);
@@ -435,13 +408,9 @@ public class SeamCarve {
 		{
 			for (int j = 0; j < kMinSeams.length; j++) // iterate over seams
 			{
-				for (int k = 0; k < kMinSeams.length; k++) // add 1 to index
-															// of seams
-															// whose index
-															// is larger
-															// than that of
-															// j seam
-				{
+				// add 1 to index of seams whose index is larger than that of j
+				// seam
+				for (int k = 0; k < kMinSeams.length; k++) {
 					if (k != j && kMinSeams[k][i] >= kMinSeams[j][i]) {
 						kMinSeams[k][i]++;
 					}
@@ -452,14 +421,9 @@ public class SeamCarve {
 		for (int i = 0; i < numRows; i++) // iterate over rows
 		{
 			for (int j = 0; j < kMinSeams.length; j++) // iterate over seams
-			{
-				for (int k = j + 1; k < kMinSeams.length; k++) // add 1 to index
-																// of seams
-																// whose index
-																// is larger
-																// than that of
-																// j seam
-				{
+			{// add 1 to index of seams whose index is larger than that of j
+				// seam
+				for (int k = j + 1; k < kMinSeams.length; k++) {
 					if (kMinSeams[k][i] == kMinSeams[j][i]) {
 						System.out.println("error");
 					}
@@ -482,12 +446,4 @@ public class SeamCarve {
 		}
 		return j;
 	}
-
-	public static double[][] matrixCopy(double[][] original) {
-		double[][] newMat = new double[original.length][];
-		for (int i = 0; i < original.length; i++)
-			newMat[i] = original[i].clone();
-		return newMat;
-	}
-
 }

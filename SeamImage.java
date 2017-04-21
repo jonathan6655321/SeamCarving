@@ -1,8 +1,6 @@
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
-import java.util.concurrent.ForkJoinPool;
 import java.util.stream.IntStream;
 
 import javax.imageio.ImageIO;
@@ -20,11 +18,6 @@ public class SeamImage {
 	private int[][] RGBMatrix;
 	boolean changed = false;
 
-	/*
-	 * int RGB = image.getRGB(j, i); int R = (RGB >> 16) & 0xff; int G = (RGB >>
-	 * * 8) & 0xff; int B = (RGB) & 0xff;
-	 */
-
 	// constructors:
 	public SeamImage(String imageFileName) {
 		Image = loadImage(imageFileName);
@@ -36,6 +29,16 @@ public class SeamImage {
 		Image = image;
 		RGBMatrix = convertImageToRGBMatrix(Image);
 		updateEverythingFromRGB();
+	}
+
+	public SeamImage(SeamImage image) {
+		this.Image = image.Image;
+		this.RGBMatrix = Matrix.clone(image.RGBMatrix);
+		this.edgeMatrix = Matrix.clone(image.edgeMatrix);
+		this.entropyMatrix = Matrix.clone(image.entropyMatrix);
+		this.grayscaleMatrix = Matrix.clone(image.grayscaleMatrix);
+		this.grayscale9X9BlurMatrix = Matrix.clone(image.grayscale9X9BlurMatrix);
+		this.edgeAndEntropyMatrix = Matrix.clone(image.edgeAndEntropyMatrix);
 	}
 
 	private static int[][] convertImageToRGBMatrix(BufferedImage image) {
@@ -82,19 +85,19 @@ public class SeamImage {
 			changed = false;
 			Image = Matrix.createBufferImageFromRGBMatrix(RGBMatrix);
 		}
-		return Image;
+		return Matrix.createBufferImageFromRGBMatrix(RGBMatrix);
 	}
 
 	public double[][] getEdgeAndEntropyMatrix() {
-		return this.edgeAndEntropyMatrix;
+		return Matrix.clone(this.edgeAndEntropyMatrix);
 	}
 
 	public int[][] getEdgeMatrix() {
-		return this.edgeMatrix;
+		return Matrix.clone(this.edgeMatrix);
 	}
 
 	public int[][] getRGBMatrix() {
-		return this.RGBMatrix;
+		return Matrix.clone(this.RGBMatrix);
 	}
 
 	// rotate:
@@ -300,8 +303,6 @@ public class SeamImage {
 	public void enlargeImageHorizontallyByK(int[][] kMinSeams) {
 		changed = true;
 		int k = kMinSeams.length;
-		// int[][] kMinSeams = SeamCarve.getKMinSeams(k,
-		// getEdgeAndEntropyMatrix(EnergyType.HoG));
 		int[][] resMatrix = new int[RGBMatrix.length][RGBMatrix[0].length + k];
 
 		// insert new seams

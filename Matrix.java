@@ -101,4 +101,22 @@ public class Matrix {
 		}
 		return Matrix.createBufferImageFromRGBMatrix(newRGBMatrix);
 	}
+
+	public static double[][] clone(double[][] original) {
+		if (original.length == 0)
+			return new double[0][0];
+		double[][] newMat = new double[original.length][original[0].length];
+		for (int i = 0; i < original.length; i++)
+			System.arraycopy(original[i], 0, newMat[i], 0, original[i].length);
+		return newMat;
+	}
+
+	public static int[][] clone(int[][] original) {
+		if (original.length == 0)
+			return new int[0][0];
+		int[][] newMat = new int[original.length][original[0].length];
+		for (int i = 0; i < original.length; i++)
+			System.arraycopy(original[i], 0, newMat[i], 0, original[i].length);
+		return newMat;
+	}
 }
