@@ -171,7 +171,7 @@ public class SeamCarve {
 				if (col != edgeMatrixWidth - 1) {
 					minPath = Math.min(minPath, minSeamsMatrix[row - 1][col + 1]);
 				}
-				minSeamsMatrix[row][col] = minPath + edgeAndEntropyMatrix[row][col];
+				minSeamsMatrix[row][col] = minPath + edgeAndEntropyMatrix[row][col];  // TODO uncomment!!!
 			}
 		}
 		return minSeamsMatrix;
@@ -364,7 +364,12 @@ public class SeamCarve {
 		int numRows = minSeamsMatrix.length;
 		int[] seam = new int[numRows];
 		seam[numRows - 1] = getMinElementsIndex(minSeamsMatrix[numRows - 1]);
-
+		
+		// TODO comment this: (for straight only)
+//		for (int i=0; i < numRows - 1; i ++)
+//		{
+//			seam[i] = seam[numRows - 1];
+//		}
 		for (int i = numRows - 2; i >= 0; i--) {
 			int prevIndex = seam[i + 1];
 

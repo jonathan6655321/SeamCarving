@@ -8,7 +8,7 @@ import javax.imageio.ImageIO;
 public class SeamImage {
 	private static final double ENTROPY_WEIGHT = 100;
 	private static final double EDGES_WEIGHT = 6;
-	private static final boolean FILL_ENLARGE = false;
+	private static final boolean FILL_ENLARGE = true;
 	private static final int NUMBER_OF_CORES = Runtime.getRuntime().availableProcessors();
 	private static final int INSERTED_SEAM_COLOR = 0xff0000; // 0x7f6464; red =
 																// #ff0000
@@ -277,7 +277,7 @@ public class SeamImage {
 		} else {
 			return INSERTED_SEAM_COLOR;
 		}
-		// return leftPixel; // TODO return to normal..
+//		 return leftPixel; // for no blend
 	}
 
 	// seam functions:
