@@ -10,7 +10,8 @@ public class SeamImage {
 	private static final double EDGES_WEIGHT = 6;
 	private static final boolean FILL_ENLARGE = false;
 	private static final int NUMBER_OF_CORES = Runtime.getRuntime().availableProcessors();
-	private static final int INSERTED_SEAM_COLOR = 0xff0000; // 0x7f6464; red = #ff0000
+	private static final int INSERTED_SEAM_COLOR = 0xff0000; // 0x7f6464; red =
+																// #ff0000
 	private BufferedImage Image;
 	private double[][] edgeAndEntropyMatrix, entropyMatrix;
 	private int[][] edgeMatrix, grayscaleMatrix, grayscale9X9BlurMatrix;
@@ -173,8 +174,8 @@ public class SeamImage {
 			int max = Math.min(rowsHandaledPerIteration * (row1 + 1), numberOfRows);
 			for (int row = row1 * rowsHandaledPerIteration; row < max; row++) {
 				for (int col = 0; col < numberOfColumns; col++) {
-					edgeAndEntropyMatrix[row][col] = EDGES_WEIGHT * edgeMatrix[row][col]
-							+ ENTROPY_WEIGHT * entropyMatrix[row][col];
+					edgeAndEntropyMatrix[row][col] = EDGES_WEIGHT * (double) edgeMatrix[row][col]
+							+ ENTROPY_WEIGHT * (double) entropyMatrix[row][col];
 				}
 			}
 		});
@@ -254,7 +255,7 @@ public class SeamImage {
 			for (int j = Math.max(col - 4, 0); j < Math.min(col + 5, numberOfColumns); j++) {
 				numberOfNeightbors++;
 				// need to add 1 so there wont be any zeros.
-				double pValue = (double)((grayscaleMatrix[i][j] + 1)) / ( grayscale9X9BlurMatrix[i][j]);
+				double pValue = (double) ((grayscaleMatrix[i][j] + 1)) / (grayscale9X9BlurMatrix[i][j]);
 				sum += pValue * Math.log(pValue);
 			}
 		}
@@ -276,7 +277,7 @@ public class SeamImage {
 		} else {
 			return INSERTED_SEAM_COLOR;
 		}
-//		return leftPixel; // TODO return to normal..
+		// return leftPixel; // TODO return to normal..
 	}
 
 	// seam functions:
@@ -298,7 +299,7 @@ public class SeamImage {
 		// insert new seams
 		for (int i = 0; i < k; i++) {
 			for (int row = 0; row < resMatrix.length; row++) {
-				resMatrix[row][kMinSeams[i][row]] = -1;  
+				resMatrix[row][kMinSeams[i][row]] = -1;
 			}
 		}
 
@@ -415,7 +416,7 @@ public class SeamImage {
 			for (int row = row1 * rowsHandaledPerIteration; row < max; row++) {
 				for (int col = Math.max(seamXValues[row] - 4, 0); col < Math.min(seamXValues[row] + 5,
 						numberOfColumns - 1); col++) {
-					edgeAndEntropyMatrix[row][col] = EDGES_WEIGHT * edgeMatrix[row][col]
+					edgeAndEntropyMatrix[row][col] = EDGES_WEIGHT * (double) edgeMatrix[row][col]
 							+ ENTROPY_WEIGHT * entropyMatrix[row][col];
 				}
 			}
