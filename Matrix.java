@@ -73,10 +73,11 @@ public class Matrix {
 			}
 		}
 		System.out.println(maxValue);
-		maxValue = 255 / maxValue;
+		maxValue = ((double) 250) / maxValue;
 		for (int i = 0; i < height; i++) {
 			for (int j = 0; j < width; j++) {
 				newRGBMatrix[i][j] = (int) (maxValue * matrix[i][j]);
+				newRGBMatrix[i][j] += (newRGBMatrix[i][j] << 16) + (newRGBMatrix[i][j] << 8);
 			}
 		}
 		return Matrix.createBufferImageFromRGBMatrix(newRGBMatrix);
@@ -93,10 +94,11 @@ public class Matrix {
 			}
 		}
 		System.out.println(maxValue);
-		maxValue = 255 / maxValue;
+		maxValue = ((double) 250) / maxValue;
 		for (int i = 0; i < height; i++) {
 			for (int j = 0; j < width; j++) {
 				newRGBMatrix[i][j] = (int) (maxValue * matrix[i][j]);
+				newRGBMatrix[i][j] += (newRGBMatrix[i][j] << 16) + (newRGBMatrix[i][j] << 8);
 			}
 		}
 		return Matrix.createBufferImageFromRGBMatrix(newRGBMatrix);
