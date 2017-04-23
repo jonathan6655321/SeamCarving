@@ -11,10 +11,9 @@ public class SeamImage {
 	private static final boolean FILL_ENLARGE = true;
 	private static final int NUMBER_OF_CORES = Runtime.getRuntime().availableProcessors();
 	private static final int INSERTED_SEAM_COLOR = 0x7f6464;
-	private static final int LOG_81_10000 = (int) Math.log((double) (81) / (double) (10000));
 	private BufferedImage Image;
-	private double[][] edgeAndEntropyMatrix;
-	private int[][] edgeMatrix, entropyMatrix, grayscaleMatrix, grayscale9X9BlurMatrix;
+	private double[][] edgeAndEntropyMatrix, entropyMatrix;
+	private int[][] edgeMatrix, grayscaleMatrix, grayscale9X9BlurMatrix;
 	private int[][] RGBMatrix;
 	private boolean changed = false;
 
@@ -128,11 +127,11 @@ public class SeamImage {
 		return edgeMatrix;
 	}
 
-	private static int[][] calculateEntropyMatrix(int[][] grayscaleMatrix, int[][] grayscale9X9BlurMatrix) {
+	private static double[][] calculateEntropyMatrix(int[][] grayscaleMatrix, int[][] grayscale9X9BlurMatrix) {
 		int numberOfRows = grayscaleMatrix.length;
 		int numberOfColumns = grayscaleMatrix[0].length;
 
-		int[][] entropyMatrix = new int[numberOfRows][numberOfColumns];
+		double[][] entropyMatrix = new double[numberOfRows][numberOfColumns];
 
 		int rowsHandaledPerIteration = numberOfRows / NUMBER_OF_CORES;
 		IntStream.rangeClosed(0, 1 + numberOfRows / rowsHandaledPerIteration).parallel().forEach(row1 -> {
@@ -163,7 +162,7 @@ public class SeamImage {
 		return grayscale9X9BlurMatrix;
 	}
 
-	private static double[][] calculateEdgeAndEntropyMatrix(int[][] entropyMatrix, int[][] edgeMatrix) {
+	private static double[][] calculateEdgeAndEntropyMatrix(double[][] entropyMatrix, int[][] edgeMatrix) {
 		int numberOfRows = edgeMatrix.length;
 		int numberOfColumns = edgeMatrix[0].length;
 
@@ -244,38 +243,25 @@ public class SeamImage {
 		return sum;
 	}
 
-	private static int calculateEntropyValue(int row, int col, int[][] grayscaleMatrix,
+	private static double calculateEntropyValue(int row, int col, int[][] grayscaleMatrix,
 			int[][] grayscale9X9BlurMatrix) {
 		int numberOfRows = grayscaleMatrix.length;
 		int numberOfColumns = grayscaleMatrix[0].length;
 
 		int numberOfNeightbors = 0;
-		int sum = 0;
-		int value;
-		int x = (1 << 8), cnt = 8;
+		double sum = 0;
 		for (int i = Math.max(row - 4, 0); i < Math.min(row + 5, numberOfRows); i++) {
 			for (int j = Math.max(col - 4, 0); j < Math.min(col + 5, numberOfColumns); j++) {
 				numberOfNeightbors++;
 				// need to add 1 so there wont be any zeros.
-				value = (10000 * (grayscaleMatrix[i][j] + 1)) / (grayscale9X9BlurMatrix[i][j] + 1);
-
-				// a log base 2 function:
-				while (x > value && x != 1) {
-					x >>= 1;
-					cnt--;
-				}
-				while (x < value) {
-					x <<= 1;
-					cnt++;
-				}
-				value *= cnt + LOG_81_10000; // ==log(value);
-				sum += value;
+				double pValue = (grayscaleMatrix[i][j] + 1) / ( grayscale9X9BlurMatrix[i][j]);
+				sum += pValue * Math.log(pValue);
 			}
 		}
 		if (numberOfNeightbors != 81) {
-			float complement = sum;
+			double complement = sum;
 			complement /= numberOfNeightbors;
-			sum = (int) (81 * complement);
+			sum = (81 * complement);
 		}
 		return sum;
 	}
@@ -450,7 +436,7 @@ public class SeamImage {
 	}
 
 	public BufferedImage getImagesEntropy() {
-		return Matrix.createBufferImageFromIntMatrix(entropyMatrix);
+		return Matrix.createBufferImageFromDoubleMatrix(entropyMatrix);
 	}
 
 	public BufferedImage getImageEdgeAndEntropy() {
