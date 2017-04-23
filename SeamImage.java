@@ -254,7 +254,7 @@ public class SeamImage {
 			for (int j = Math.max(col - 4, 0); j < Math.min(col + 5, numberOfColumns); j++) {
 				numberOfNeightbors++;
 				// need to add 1 so there wont be any zeros.
-				double pValue = (grayscaleMatrix[i][j] + 1) / ( grayscale9X9BlurMatrix[i][j]);
+				double pValue = (double)((grayscaleMatrix[i][j] + 1)) / ( grayscale9X9BlurMatrix[i][j]);
 				sum += pValue * Math.log(pValue);
 			}
 		}
