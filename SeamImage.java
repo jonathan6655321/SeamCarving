@@ -6,11 +6,11 @@ import java.util.stream.IntStream;
 import javax.imageio.ImageIO;
 
 public class SeamImage {
-	private static final double ENTROPY_WEIGHT = -0.01;
+	private static final double ENTROPY_WEIGHT = 100;
 	private static final double EDGES_WEIGHT = 6;
-	private static final boolean FILL_ENLARGE = true;
+	private static final boolean FILL_ENLARGE = false;
 	private static final int NUMBER_OF_CORES = Runtime.getRuntime().availableProcessors();
-	private static final int INSERTED_SEAM_COLOR = 0x7f6464;
+	private static final int INSERTED_SEAM_COLOR = 0xff0000; // 0x7f6464; red = #ff0000
 	private BufferedImage Image;
 	private double[][] edgeAndEntropyMatrix, entropyMatrix;
 	private int[][] edgeMatrix, grayscaleMatrix, grayscale9X9BlurMatrix;
@@ -276,6 +276,7 @@ public class SeamImage {
 		} else {
 			return INSERTED_SEAM_COLOR;
 		}
+//		return leftPixel; // TODO return to normal..
 	}
 
 	// seam functions:
@@ -297,7 +298,7 @@ public class SeamImage {
 		// insert new seams
 		for (int i = 0; i < k; i++) {
 			for (int row = 0; row < resMatrix.length; row++) {
-				resMatrix[row][kMinSeams[i][row]] = -1;
+				resMatrix[row][kMinSeams[i][row]] = -1;  
 			}
 		}
 
