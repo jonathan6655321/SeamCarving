@@ -25,6 +25,8 @@ public class SeamCarve {
 		outputImageFilePath = args[4];
 
 		resizePicture(imageFilename, width, height, eType, outputImageFilePath);
+		
+		
 	}
 
 	private static void resizePicture(String imageFilename, int width, int height, EnergyType eType,
