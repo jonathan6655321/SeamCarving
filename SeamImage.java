@@ -277,7 +277,7 @@ public class SeamImage {
 		} else {
 			return INSERTED_SEAM_COLOR;
 		}
-//		 return leftPixel; // for no blend
+//		 return leftPixel; // TODO for no blend
 	}
 
 	// seam functions:
