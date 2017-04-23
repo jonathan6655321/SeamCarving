@@ -5,9 +5,8 @@ import java.util.Arrays;
 import javax.imageio.ImageIO;
 
 /* TODO:
- * Enlarge bigger then original*2;
  * to get better result - maybe first scale the picture, and then do seam carve
- * make enlargement use updateSeamMatrix too
+ * maybe first enlarge it by x and then scale it?
  */
 public class SeamCarve {
 	public static final boolean SHOW_IMAGE = true;
