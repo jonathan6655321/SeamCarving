@@ -9,7 +9,7 @@ import javax.imageio.ImageIO;
  * maybe first enlarge it by x and then scale it?
  */
 public class SeamCarve {
-	public static final boolean SHOW_IMAGE = true;
+	public static final boolean SHOW_IMAGE = false;
 	public static final boolean SAVE_IMAGE = true;
 
 	public static void main(String[] args) {
